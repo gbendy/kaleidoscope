@@ -1,6 +1,6 @@
 export OUT_PATH=$(CURDIR)/out
 
-TREE=lib/kaleidoscope bin/ktest
+TREE=lib/kaleidoscope lib/io bin/ktest
 
 .PHONY: all clean
 

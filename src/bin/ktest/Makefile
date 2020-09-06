@@ -2,6 +2,7 @@
 
 MY_OUT_DIR=$(OUT_PATH)/ktest
 include ../../lib/kaleidoscope/kaleidoscope.mk
+include ../../lib/io/io.mk
 
 all: $(MY_OUT_DIR) $(MY_OUT_DIR)/ktest
 
