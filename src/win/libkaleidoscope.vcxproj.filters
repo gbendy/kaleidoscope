@@ -15,12 +15,12 @@
     </Filter>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="../lib/libkaleidoscope.cpp">
+    <ClCompile Include="../lib/kaleidoscope/libkaleidoscope.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\lib\libkaleidoscope.h">
+    <ClInclude Include="..\lib\kaleidoscope/libkaleidoscope.h">
       <Filter>Header Files</Filter>
     </ClInclude>
   </ItemGroup>

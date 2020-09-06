@@ -155,10 +155,10 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClInclude Include="..\lib\libkaleidoscope.h" />
+    <ClInclude Include="..\lib\kaleidoscope/libkaleidoscope.h" />
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="../lib/libkaleidoscope.cpp">
+      <ClCompile Include="../lib/kaleidoscope/libkaleidoscope.cpp">
       <PrecompiledHeader Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">NotUsing</PrecompiledHeader>
     </ClCompile>
   </ItemGroup>

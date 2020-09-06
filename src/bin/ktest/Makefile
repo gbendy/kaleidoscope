@@ -1,8 +1,7 @@
 .PHONY: all clean
 
 MY_OUT_DIR=$(OUT_PATH)/ktest
-
-CXXFLAGS=-I../../lib
+include ../../lib/kaleidoscope/kaleidoscope.mk
 
 all: $(MY_OUT_DIR) $(MY_OUT_DIR)/ktest
 
@@ -10,7 +9,7 @@ $(MY_OUT_DIR):
 	mkdir -p $(MY_OUT_DIR)
 
 $(MY_OUT_DIR)/ktest: $(MY_OUT_DIR)/ktest.o
-	c++ -o $(MY_OUT_DIR)/ktest $(MY_OUT_DIR)/ktest.o -L $(OUT_PATH)/libkaleidoscope -lkaleidoscope
+	c++ -o $(MY_OUT_DIR)/ktest $(MY_OUT_DIR)/ktest.o $(LDPOSTFLAGS)
 
 $(MY_OUT_DIR)/ktest.o: ktest.cpp
 	c++ -c $(CXXFLAGS) -o $(MY_OUT_DIR)/ktest.o ktest.cpp
