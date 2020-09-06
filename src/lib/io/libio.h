@@ -19,16 +19,19 @@ struct Frame {
     std::uint32_t n_comp;
     std::unique_ptr<std::uint8_t> data;
 
-    Frame(std::uint32_t _width,
-            std::uint32_t _height,
-            std::uint32_t _comp_size,
-            std::uint32_t _n_comp):
+    Frame(std::uint32_t _width = 0,
+            std::uint32_t _height = 0,
+            std::uint32_t _comp_size = 0,
+            std::uint32_t _n_comp = 0):
         width(_width),
         height(_height),
         comp_size(_comp_size),
-        n_comp(_n_comp),
-        data(new std::uint8_t[width * height * comp_size * n_comp])
+        n_comp(_n_comp)
     {
+        std::uint32_t data_size = width * height * comp_size * n_comp;
+        if (data_size) {
+            data.reset(new std::uint8_t[data_size]);
+        }
     }
 };
 
@@ -41,6 +44,11 @@ void write_mig(const std::string& filename, const Frame& frame);
 /// \param filename to write to, better be writable because we don't check
 /// \param frame the frame to write
 void write_pbm(const std::string& filename, const Frame& frame);
+
+/// Reads a PBM file. 
+/// \param filename to read.
+/// \return the frame. Will be empty if \p filename cannot be read or is not a PBM
+Frame read_pbm(const std::string& filename);
 
 }
 #endif 

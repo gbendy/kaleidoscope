@@ -35,9 +35,9 @@ void write_bs(std::ostream& str, float v)
     str.write(reinterpret_cast<char*>(&outv), 4);
 }
 
-void write_mig(const std::string& name, const Frame& frame)
+void write_mig(const std::string& filename, const Frame& frame)
 {
-    std::ofstream out(name.c_str(), std::ios_base::binary | std::ios_base::out);
+    std::ofstream out(filename.c_str(), std::ios_base::binary | std::ios_base::out);
     out.write("mgtc", 4);
     std::uint32_t v(3);
     write_bs(out, v);
@@ -66,11 +66,34 @@ void write_mig(const std::string& name, const Frame& frame)
     out.close();
 }
 
-void write_pbm(const std::string& name, const Frame& frame)
+void write_pbm(const std::string& filename, const Frame& frame)
 {
-    std::ofstream out(name.c_str(), std::ios_base::binary | std::ios_base::out);
+    std::ofstream out(filename.c_str(), std::ios_base::binary | std::ios_base::out);
     out << "P6 " << frame.width << " " << frame.height << " 255 ";
     out.write(reinterpret_cast<char*>(frame.data.get()), frame.width * frame.height * frame.comp_size * frame.n_comp);
     out.close();
 }
+
+libio::Frame read_pbm(const std::string& filename)
+{
+    std::ifstream in(filename.c_str(), std::ios_base::binary | std::ios_base::out);
+    if (!in.is_open()) {
+        return Frame();
+    }
+    std::string format;
+    in >> format;
+    if (format != "P6") {
+        return Frame();
+    }
+    std::uint32_t width,height,max_value;
+    in >> width >> height >> max_value;
+    in.get();
+
+    Frame frame(width,height,1,3);
+    in.read(reinterpret_cast<char*>(frame.data.get()), frame.width * frame.height * frame.comp_size * frame.n_comp);
+    in.close();
+
+    return frame;
+}
+
 }
