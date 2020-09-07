@@ -32,6 +32,7 @@ m_segmentation(16),
 m_segment_direction(Direction::CLOCKWISE),
 m_preferred_corner(Corner::BR),
 m_preferred_search_dir(Direction::CLOCKWISE),
+m_background_colour(nullptr),
 m_n_segments(0),
 m_start_angle(0),
 m_segment_width(0)
@@ -98,6 +99,17 @@ std::int32_t Kaleidoscope::set_preferred_corner_search_direction(Direction direc
 Kaleidoscope::Direction Kaleidoscope::get_preferred_corner_search_direction() const
 {
     return m_preferred_search_dir;
+}
+
+std::int32_t Kaleidoscope::set_background_colour(void* colour)
+{
+    m_background_colour = colour;
+    return 0;
+}
+
+void* Kaleidoscope::get_background_colour() const
+{
+    return m_background_colour;
 }
 
 static double distance_sq(double x1, double y1, double x2, double y2)
@@ -287,16 +299,10 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
                     (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
                     const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
                     std::memcpy(out, src, pixel_size);
-                } else {
-                    out[0] = 0xff;
-                    out[1] = 0x0;
-                    out[2] = 0xff;
-                    if (m_num_components > 3) {
-                        out[3] = 0xff;
-                    }
+                } else if (m_background_colour) {
+                    std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), pixel_size);
                 }
-            }
-            else {
+            } else {
                 const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * y + pixel_size * x;
                 std::memcpy(out, src, pixel_size);
             }

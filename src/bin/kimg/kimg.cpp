@@ -1,6 +1,7 @@
 #include "libkaleidoscope.h"
 #include "libio.h"
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 
 struct Options {
@@ -16,6 +17,8 @@ struct Options {
     libkaleidoscope::Kaleidoscope::Corner corner;
     libkaleidoscope::Kaleidoscope::Direction corner_direction;
 
+    std::uint8_t bg_colour[3];
+
     Options():
         segmentation(16),
         direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE),
@@ -23,12 +26,16 @@ struct Options {
         origin_y(0.5f),
         corner(libkaleidoscope::Kaleidoscope::Corner::BL),
         corner_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE)
-    {}
+    {
+        bg_colour[0] = 0xff;
+        bg_colour[1] = 0x00;
+        bg_colour[2] = 0xff;
+    }
 };
 
 void print_usage(const char* arg0)
 {
-    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] infile outfile" << std::endl;
+    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb ] infile outfile" << std::endl;
 }
 
 std::string to_string(libkaleidoscope::Kaleidoscope::Direction d)
@@ -43,17 +50,28 @@ std::string to_string(libkaleidoscope::Kaleidoscope::Corner c)
     if (c == libkaleidoscope::Kaleidoscope::Corner::BL) return "bl";
     return "br";
 }
+
+std::string to_string(std::uint8_t bg_colour[3])
+{
+    std::stringstream ss;
+    ss << std::hex << std::setfill('0') << std::setw(2) << static_cast<std::int32_t>(bg_colour[0]);
+    ss << std::hex << std::setfill('0') << std::setw(2) << static_cast<std::int32_t>(bg_colour[1]);
+    ss << std::hex << std::setfill('0') << std::setw(2) << static_cast<std::int32_t>(bg_colour[2]);
+    
+    return ss.str();
+}
 void print_help(const char* arg0)
 {
     print_usage(arg0);
     Options o;
     std::cerr << std::endl;
-    std::cerr << "    -s  segmentation  kaleidoscope segmentation           (default " << o.segmentation << ")" << std::endl;
-    std::cerr << "    -d  cw|ccw        kaleidoscope direction              (default " << to_string(o.direction) << ")" << std::endl;
-    std::cerr << "    -x  float         x centre point of kaleidoscope      (default " << o.origin_x << ")" << std::endl;
-    std::cerr << "    -y  float         y centre point of kaleidoscope      (default " << o.origin_x << ")" << std::endl;
-    std::cerr << "    -c  tl|tr|bl|br   preferred corner of source segment  (default " << to_string(o.corner) << ")" << std::endl;
-    std::cerr << "    -cd cw|ccw        search direction for source segment (default " << to_string(o.corner_direction) << ")" << std::endl;
+    std::cerr << "    -s  segmentation  kaleidoscope segmentation             (default " << o.segmentation << ")" << std::endl;
+    std::cerr << "    -d  cw|ccw        kaleidoscope direction                (default " << to_string(o.direction) << ")" << std::endl;
+    std::cerr << "    -x  float         x centre point of kaleidoscope        (default " << o.origin_x << ")" << std::endl;
+    std::cerr << "    -y  float         y centre point of kaleidoscope        (default " << o.origin_x << ")" << std::endl;
+    std::cerr << "    -c  tl|tr|bl|br   preferred corner of source segment    (default " << to_string(o.corner) << ")" << std::endl;
+    std::cerr << "    -cd cw|ccw        search direction for source segment   (default " << to_string(o.corner_direction) << ")" << std::endl;
+    std::cerr << "    -b  rrggbb        background colour as a hex color code (default " << to_string(o.bg_colour) << ")" << std::endl;
     std::cerr << "    infile            input PBM (P6) image" << std::endl;
     std::cerr << "    outfile           output PBM (P6) image" << std::endl;
 }
@@ -75,23 +93,19 @@ Options parse_options(int argc, char** argv)
                 if (ss.fail() || !ss.eof()) {
                     throw "Could not convert -s argument " + std::string(argv[i]) + " to an integer.";
                 }
-            }
-            else if (arg == "-d") {
+            } else if (arg == "-d") {
                 // direction
                 i++;
                 VALIDATE_IDX("-d has no argument");
                 std::string value(argv[i]);
                 if (value != "cw" && value != "ccw") {
                     throw "-d argument " + std::string(argv[i]) + " is not cw or ccw.";
-                }
-                else if (value == "cw") {
+                } else if (value == "cw") {
                     options.direction = libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE;
-                }
-                else {
+                } else {
                     options.direction = libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE;
                 }
-            }
-            else if (arg == "-x") {
+            } else if (arg == "-x") {
                 // x origin
                 i++;
                 VALIDATE_IDX("-x has no argument");
@@ -100,8 +114,7 @@ Options parse_options(int argc, char** argv)
                 if (ss.fail() || !ss.eof()) {
                     throw "Could not convert -x argument " + std::string(argv[i]) + " to a float.";
                 }
-            }
-            else if (arg == "-y") {
+            } else if (arg == "-y") {
                 // y origin
                 i++;
                 VALIDATE_IDX("-y has no argument");
@@ -110,43 +123,72 @@ Options parse_options(int argc, char** argv)
                 if (ss.fail() || !ss.eof()) {
                     throw "Could not convert -y argument " + std::string(argv[i]) + " to a float.";
                 }
-            }
-            else if (arg == "-c") {
+            } else if (arg == "-c") {
                 // direction
                 i++;
                 VALIDATE_IDX("-c has no argument");
                 std::string value(argv[i]);
                 if (value == "tl") {
                     options.corner = libkaleidoscope::Kaleidoscope::Corner::TL;
-                }
-                else if (value == "tr") {
+                } else if (value == "tr") {
                     options.corner = libkaleidoscope::Kaleidoscope::Corner::TR;
-                }
-                else if (value == "bl") {
+                } else if (value == "bl") {
                     options.corner = libkaleidoscope::Kaleidoscope::Corner::BL;
-                }
-                else if (value == "br") {
+                } else if (value == "br") {
                     options.corner = libkaleidoscope::Kaleidoscope::Corner::BR;
-                }
-                else {
+                } else {
                     throw "-c argument " + std::string(argv[i]) + " is not tl, tr, bl or br.";
                 }
-            }
-            else if (arg == "-cd") {
+            } else if (arg == "-cd") {
                 // direction
                 i++;
                 VALIDATE_IDX("-cd has no argument");
                 std::string value(argv[i]);
                 if (value != "cw" && value != "ccw") {
                     throw "-cd argument " + std::string(argv[i]) + " is not cw or ccw.";
-                }
-                else if (value == "cw") {
+                } else if (value == "cw") {
                     options.corner_direction = libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE;
-                }
-                else {
+                } else {
                     options.corner_direction = libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE;
                 }
-            } else if (arg[0] == '-') {
+            } else if (arg == "-b") {
+                // direction
+                i++;
+                VALIDATE_IDX("-b has no argument");
+                std::string value(argv[i]);
+                if (value[0] == '#') {
+                    value = value.substr(1);
+                } else if (value.substr(0, 2) == "0x" || value.substr(0, 2) == "0X") {
+                    value = value.substr(2);
+                }
+                if (value.length() != 6) {
+                    throw "-b argument " + std::string(argv[i]) + " is not a colour code.";
+                }
+                try {
+                    std::string comp(value.substr(0, 2));
+                    std::size_t end;
+                    unsigned long v = std::stoul(comp, &end, 16);
+                    if (end != 2) {
+                        throw "-b argument " + std::string(argv[i]) + " is not a colour code.";
+                    }
+                    options.bg_colour[0] = static_cast<std::uint8_t>(v);
+                    
+                    comp = value.substr(2, 2);                    
+                    v = std::stoul(comp, &end, 16);
+                    if (end != 2) {
+                        throw "-b argument " + std::string(argv[i]) + " is not a colour code.";
+                    }
+                    options.bg_colour[1] = static_cast<std::uint8_t>(v);
+                    comp = value.substr(4, 2);
+                    v = std::stoul(comp, &end, 16);
+                    if (end != 2) {
+                        throw "-b argument " + std::string(argv[i]) + " is not a colour code.";
+                    }
+                    options.bg_colour[2] = static_cast<std::uint8_t>(v);
+                } catch (const std::exception& e) {
+                    throw "-b argument " + std::string(argv[i]) + " is not a colour code.";
+                }
+            } else if (arg == "-h") {
                 print_help(argv[0]);
                 return Options();
             } else if (arg[0] == '-') {
@@ -189,6 +231,7 @@ int main(int argc, char** argv)
     k.set_origin(opts.origin_x, opts.origin_y);
     k.set_preferred_corner(opts.corner);
     k.set_preferred_corner_search_direction(opts.corner_direction);
+    k.set_background_colour(opts.bg_colour);
 
     k.process(frame.data.get(), out_frame.data.get());
     libio::write_pbm(opts.out_file.c_str(), out_frame);

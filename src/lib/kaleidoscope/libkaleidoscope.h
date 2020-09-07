@@ -22,8 +22,10 @@ public:
 
     /**
      * Sets the origin of the kaleidoscope effect. These are given in the range 0 -> 1.
+     * Values other than 0.5,0.5 may end up reflecting outside the source image.
+     * These areas will be filled with the colour specified in #set_background_colour.
      * Defaults to 0.5, 0.5.
-     * @param x y coordinate of the origin
+     * @param x x coordinate of the origin
      * @param y y coordinate of the origin
      * @return 
      *          -  0:  Success
@@ -43,7 +45,9 @@ public:
     float get_origin_y() const;
     
     /**
-     * Sets the segmentation.
+     * Sets the segmentation. Segmentation values other than 1, 2 or a multiple of
+     * 4 may end up reflecting outside the source image. These areas will be filled with
+     * the colour specified in #set_background_colour.
      * Defaults to 16.
      * @param segmentation the segmentation value
      * @return
@@ -60,10 +64,10 @@ public:
     
     ///  Defines a corner
     enum class Corner {
-        TL = 0,
-        TR,
-        BR,
-        BL
+        TL = 0,     //< Top Left
+        TR,         //< Top Right
+        BR,         //< Bottom Right
+        BL          //< Bottom Left
     };
 
     ///  Defines an angular direction
@@ -119,6 +123,24 @@ public:
      * Returns the corner search direction
      */
     Direction get_preferred_corner_search_direction() const;
+
+    /**
+     * Sets the colour to use when the kaleidoscope effect for a point ends up outside the source
+     * segment. The data pointed to should be at least as wide as a pixel and must be valid for
+     * the lifetime of the class instance. The caller retains ownership.
+     * Defaults to \c nullptr
+     * @param colour the background colour, if \c nullptr then the output buffer is not modified
+     * if reflection does not land in the source segment.
+     * @return
+     *          -  0:  Success
+     *          - -1: Error
+     */
+    std::int32_t set_background_colour(void* colour);
+
+    /**
+     * Returns the background colour
+     */
+    void *get_background_colour() const;
 
     /**
      * Applies the kaleidoscope effect to \p in_frame and returns it in \p out_frame.
@@ -180,6 +202,8 @@ private:
 
     Corner m_preferred_corner;
     Direction m_preferred_search_dir;
+
+    void* m_background_colour;
 
     std::uint32_t m_n_segments;
     float m_start_angle;
