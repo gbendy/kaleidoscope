@@ -2,6 +2,8 @@
 //
 #include "libkaleidoscope.h"
 #include <cmath>
+#include <memory>
+#include <cstring>
 
 #ifndef M_PI
 #define M_PI  3.14159265358979323846
@@ -113,10 +115,10 @@ void Kaleidoscope::init()
 {
     // find origin rotation
     std::uint32_t corners[4][2] = {
-        { 0, 0 },
-        { 1, 0 },
+        { 0, 1 },
         { 1, 1 },
-        { 0, 1 }
+        { 1, 0 },
+        { 0, 0 }
     };
     std::int32_t start_idx(0);
     switch (m_preferred_corner) {
@@ -149,6 +151,36 @@ void Kaleidoscope::init()
     m_segment_width = MF_PI * 2 / m_n_segments;
 
 }
+
+Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x, std::uint32_t y)
+{
+    Reflect_info info;
+
+    info.x = x;
+    info.y = y;
+    info.screen_x = x / static_cast<float>(m_width) - m_origin_x;
+    info.screen_y = -(y / static_cast<float>(m_height) - m_origin_y); // negated so +y is up
+    float direction_factor = (m_segment_direction == Direction::CLOCKWISE ? 1.0f : -1.0f);
+    info.angle = -direction_factor * (std::atan2(info.screen_y, info.screen_x) + MF_PI - m_start_angle);
+    while (info.angle < 0) {
+        info.angle += MF_2PI;
+    }
+    while (info.angle > MF_2PI) {
+        info.angle -= MF_2PI;
+    }
+    info.segment_number = std::uint32_t(info.angle / m_segment_width);
+
+    if (info.segment_number) {
+        info.reflection_angle = direction_factor * (info.segment_number * m_segment_width);
+        if (info.segment_number % 2) {
+            info.reflection_angle -= direction_factor * (m_segment_width - 2 * (info.angle - direction_factor * info.reflection_angle));            
+        }
+    } else {
+        info.reflection_angle = 0;
+    }
+    return info;
+}
+
 std::uint8_t colours[63][3] = {
     { 0x00, 0xFF, 0x00 },
     { 0x00, 0x00, 0xFF },
@@ -235,31 +267,66 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
     if (m_n_segments == 0) {
         init();
     }
-    std::uint32_t comp_size = m_num_components * m_component_size;
+    std::uint32_t pixel_size = m_num_components * m_component_size;
     float origin_x = m_origin_x * m_width;
     float origin_y = m_origin_y * m_height;
 
     for (std::uint32_t y = 0; y < m_height; ++y) {
         for (std::uint32_t x = 0; x < m_width; ++x) {
-            std::uint8_t* out = ((std::uint8_t*)out_frame) + m_stride * y + x * comp_size;
-            float screen_x = (x - origin_x) / m_width;
-            float screen_y = (y - origin_y) / m_height;
+            std::uint8_t* out = reinterpret_cast<std::uint8_t*>(out_frame) + m_stride * y + pixel_size * x;
 
-            float pt_angle = (m_segment_direction == Direction::CLOCKWISE ? 1 : -1) * (std::atan2(screen_y, screen_x) + MF_PI - m_start_angle);
-            while (pt_angle < 0) {
-                pt_angle += MF_2PI;
+            Reflect_info info = calculate_reflect_info(x, y);
+
+            if (info.segment_number) {
+                float cos_angle = std::cos(info.reflection_angle);
+                float sin_angle = std::sin(info.reflection_angle);
+                float source_x = (info.screen_x * cos_angle - info.screen_y * sin_angle + m_origin_x) * m_width;
+                float source_y = (-(info.screen_y * cos_angle + info.screen_x * sin_angle) + m_origin_y) * m_height;
+
+                if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
+                    (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
+                    const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
+                    std::memcpy(out, src, pixel_size);
+                } else {
+                    out[0] = 0xff;
+                    out[1] = 0x0;
+                    out[2] = 0xff;
+                    if (m_num_components > 3) {
+                        out[3] = 0xff;
+                    }
+                }
             }
-            while (pt_angle > MF_2PI) {
-                pt_angle -= MF_2PI;
+            else {
+                const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * y + pixel_size * x;
+                std::memcpy(out, src, pixel_size);
             }
-            std::uint32_t segment_number = std::uint32_t(pt_angle / m_segment_width);
-            std::uint32_t col_idx = segment_number % 63;
+        }
+    }
+    return 0;
+}
+
+std::int32_t Kaleidoscope::visualise(void* out_frame)
+{
+    if (out_frame == nullptr) {
+        return -2;
+    }
+    if (m_n_segments == 0) {
+        init();
+    }
+    std::uint32_t pixel_size = m_num_components * m_component_size;
+
+    for (std::uint32_t y = 0; y < m_height; ++y) {
+        for (std::uint32_t x = 0; x < m_width; ++x) {
+            std::uint8_t* out = reinterpret_cast<std::uint8_t*>(out_frame) + m_stride * y + pixel_size * x;
+            Reflect_info info = calculate_reflect_info(x, y);
+
+            std::uint32_t col_idx = info.segment_number % 63;
             out[0] = colours[col_idx][0];
             out[1] = colours[col_idx][1];
             out[2] = colours[col_idx][2];
             if (m_num_components > 3) {
                 out[3] = 0xff;
-            }            
+            }
         }
     }
     return 0;

@@ -10,7 +10,7 @@ $(MY_OUT_DIR):
 $(MY_OUT_DIR)/libio.a: $(MY_OUT_DIR)/libio.o
 	ar r $(MY_OUT_DIR)/libio.a $(MY_OUT_DIR)/libio.o
 
-$(MY_OUT_DIR)/libio.o: libio.cpp
+$(MY_OUT_DIR)/libio.o: libio.cpp libio.h
 	c++ -c -o $(MY_OUT_DIR)/libio.o libio.cpp
 
 clean:

@@ -12,37 +12,37 @@ int main(int argc, char** argv)
     k.set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE);
     
     k.set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TL);
-    k.process(frame.data.get(),frame.data.get());
+    k.visualise(frame.data.get());
     libio::write_pbm("tla.pbm", frame);
 
     k.set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::BL);
-    k.process(frame.data.get(), frame.data.get());
+    k.visualise( frame.data.get());
     libio::write_pbm("bla.pbm", frame);
 
     k.set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::BR);
-    k.process(frame.data.get(), frame.data.get());
+    k.visualise( frame.data.get());
     libio::write_pbm("bra.pbm", frame);
 
     k.set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TR);
-    k.process(frame.data.get(), frame.data.get());
+    k.visualise( frame.data.get());
     libio::write_pbm("tra.pbm", frame);
 
     k.set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE);
     
     k.set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TL);
-    k.process(frame.data.get(), frame.data.get());
+    k.visualise( frame.data.get());
     libio::write_pbm("tlc.pbm", frame);
 
     k.set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::BL);
-    k.process(frame.data.get(), frame.data.get());
+    k.visualise( frame.data.get());
     libio::write_pbm("blc.pbm", frame);
 
     k.set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::BR);
-    k.process(frame.data.get(), frame.data.get());
+    k.visualise( frame.data.get());
     libio::write_pbm("brc.pbm", frame);
 
     k.set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TR);
-    k.process(frame.data.get(), frame.data.get());
+    k.visualise( frame.data.get());
     libio::write_pbm("trc.pbm", frame);
 
     return 0;

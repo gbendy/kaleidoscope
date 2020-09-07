@@ -10,7 +10,7 @@ $(MY_OUT_DIR):
 $(MY_OUT_DIR)/libkaleidoscope.a: $(MY_OUT_DIR)/libkaleidoscope.o
 	ar r $(MY_OUT_DIR)/libkaleidoscope.a $(MY_OUT_DIR)/libkaleidoscope.o
 
-$(MY_OUT_DIR)/libkaleidoscope.o: libkaleidoscope.cpp
+$(MY_OUT_DIR)/libkaleidoscope.o: libkaleidoscope.cpp libkaleidoscope.h
 	c++ -c -o $(MY_OUT_DIR)/libkaleidoscope.o libkaleidoscope.cpp
 
 clean:

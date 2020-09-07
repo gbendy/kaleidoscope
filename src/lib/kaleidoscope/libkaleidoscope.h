@@ -41,7 +41,7 @@ public:
      * Returns the origin y coordinate.
      */
     float get_origin_y() const;
-
+    
     /**
      * Sets the segmentation.
      * Defaults to 16.
@@ -133,8 +133,38 @@ public:
      */
     std::int32_t process(const void* in_frame, void* out_frame);
 
+    /**
+     * Visualises the currently configured segmentation. The pure green segment is the 
+     * source segment and it reflects in the direction of the adjacent pure blue segment.
+     * @param out_frame receives the output image
+     * @return
+     *          -  0:  Success
+     *          - -1: Error
+     *          - -2: Invalid parameter (nullptr)
+     */
+    std::int32_t visualise(void* out_frame);
+
 private:
     void init();
+
+
+    /// Defines reflection information for a given point in the frame
+    struct Reflect_info {
+        std::uint32_t x;                ///< x coordinate
+        std::uint32_t y;                ///< y coordinate
+        float screen_x;                 ///< x coordinate in screen space (range -0.5->0.5, left negative)
+        float screen_y;                 ///< y coordinate in screen space (range -0.5->0.5, bottom negative)
+        float angle;                    ///< angle from this point to the start of the source segment
+        std::uint32_t segment_number;   ///< segment number the point resides in
+        float reflection_angle;         ///< angle from this point to the point it reflects
+    };
+
+    /// Calculates the reflection information for a given point.
+    /// NB: init() must have already been called.
+    /// @param x the x coordinate
+    /// @param x the y coordinate
+    /// @return the reflection information for the point
+    Reflect_info calculate_reflect_info(std::uint32_t x, std::uint32_t y);
 
     std::uint32_t m_width;
     std::uint32_t m_height;
