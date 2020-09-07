@@ -145,7 +145,7 @@ void Kaleidoscope::init()
 
     float start_line_x = corners[corner][0] - origin_x;
     float start_line_y = corners[corner][1] - origin_y;
-    m_start_angle = std::atan2(start_line_y, start_line_x) + MF_PI;
+    m_start_angle = std::atan2(-start_line_y, start_line_x) + MF_PI;
 
     m_n_segments = m_segmentation * 2;
     m_segment_width = MF_PI * 2 / m_n_segments;
