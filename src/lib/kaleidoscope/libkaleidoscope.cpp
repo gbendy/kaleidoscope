@@ -33,6 +33,7 @@ m_segment_direction(Direction::CLOCKWISE),
 m_preferred_corner(Corner::BR),
 m_preferred_search_dir(Direction::CLOCKWISE),
 m_background_colour(nullptr),
+m_edge_threshold(0),
 m_n_segments(0),
 m_start_angle(0),
 m_segment_width(0)
@@ -75,6 +76,17 @@ std::int32_t Kaleidoscope::set_segmentation(std::uint32_t segmentation)
 std::uint32_t Kaleidoscope::get_segmentation() const
 {
     return m_segmentation;
+}
+
+std::int32_t Kaleidoscope::set_edge_threshold(std::uint32_t threshold)
+{
+    m_edge_threshold = threshold;
+    return 0;
+}
+
+std::uint32_t Kaleidoscope::get_edge_threshold() const
+{
+    return m_edge_threshold;
 }
 
 std::int32_t Kaleidoscope::set_preferred_corner(Corner corner)
@@ -295,6 +307,16 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
                 float source_x = (info.screen_x * cos_angle - info.screen_y * sin_angle + m_origin_x) * m_width;
                 float source_y = (-(info.screen_y * cos_angle + info.screen_x * sin_angle) + m_origin_y) * m_height;
 
+                if (source_x < 0 && -source_x <= m_edge_threshold) {
+                    source_x = 0;
+                } else if (source_x >= m_width && source_x < m_width + m_edge_threshold) {
+                    source_x = m_width - 1.0f;
+                }
+                if (source_y < 0 && -source_y <= m_edge_threshold) {
+                    source_y = 0;
+                } else if (source_y >= m_height && source_y < m_height + m_edge_threshold) {
+                    source_y = m_height - 1.0f;
+                }
                 if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
                     (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
                     const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;

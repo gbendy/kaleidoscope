@@ -62,6 +62,23 @@ public:
      */
     std::uint32_t get_segmentation() const;
     
+    /**
+     * If a reflected pixel ends up outside the image then it gets filled with the
+     * background colour. Setting an edge threshold will clamp pixels that fall outside
+     * the image but within \p threshold pixels of the edge to the edge.
+     * Defaults to 0
+     * @param threshold the threshold in pixels.
+     * @return
+     *          -  0:  Success
+     *          - -1: Error
+     */
+    std::int32_t set_edge_threshold(std::uint32_t threshold);
+
+    /**
+     * Returns the edge threshold
+     */
+    std::uint32_t get_edge_threshold() const;
+
     ///  Defines a corner
     enum class Corner {
         TL = 0,     //< Top Left
@@ -204,6 +221,7 @@ private:
     Direction m_preferred_search_dir;
 
     void* m_background_colour;
+    std::uint32_t m_edge_threshold;
 
     std::uint32_t m_n_segments;
     float m_start_angle;
