@@ -1,8 +1,8 @@
 .PHONY: all clean
 
 MY_OUT_DIR=$(OUT_PATH)/kimg
-include ../../lib/kaleidoscope/kaleidoscope.mk
-include ../../lib/io/io.mk
+include $(ROOT_PATH)/lib/kaleidoscope/kaleidoscope.mk
+include $(ROOT_PATH)/lib/io/io.mk
 
 all: $(MY_OUT_DIR) $(MY_OUT_DIR)/kimg
 
