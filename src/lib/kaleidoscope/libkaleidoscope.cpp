@@ -184,8 +184,8 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x,
     info.y = y;
     info.screen_x = x / static_cast<float>(m_width) - m_origin_x;
     info.screen_y = -(y / static_cast<float>(m_height) - m_origin_y); // negated so +y is up
-    float direction_factor = (m_segment_direction == Direction::CLOCKWISE ? 1.0f : -1.0f);
-    info.angle = -direction_factor * (std::atan2(info.screen_y, info.screen_x) + MF_PI - m_start_angle);
+    float direction_factor = (m_segment_direction == Direction::CLOCKWISE ? -1.0f : 1.0f);
+    info.angle = -direction_factor * (std::atan2(-info.screen_y, info.screen_x) + MF_PI - m_start_angle);
     while (info.angle < 0) {
         info.angle += MF_2PI;
     }
@@ -195,9 +195,9 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x,
     info.segment_number = std::uint32_t(info.angle / m_segment_width);
 
     if (info.segment_number) {
-        info.reflection_angle = direction_factor * (info.segment_number * m_segment_width);
+        info.reflection_angle = -direction_factor * (info.segment_number * m_segment_width);
         if (info.segment_number % 2) {
-            info.reflection_angle -= direction_factor * (m_segment_width - 2 * (info.angle - direction_factor * info.reflection_angle));            
+            info.reflection_angle += direction_factor * (m_segment_width - 2 * (info.angle + direction_factor * info.reflection_angle));            
         }
     } else {
         info.reflection_angle = 0;
