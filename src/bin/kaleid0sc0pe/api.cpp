@@ -15,6 +15,8 @@ public:
         m_corner_direction("cw"),
         m_edge_threshold(0),
         m_bg_alpha(1),
+        m_specify_source(false),
+        m_source_segment(0),
         m_dirty(true)
     {
         m_bg_colour.r = 1.0;
@@ -30,6 +32,12 @@ public:
         register_param(m_segmentation,
                                 "segmentation",
                                 "kaleidoscope segmentation / 128, segmentations of 1, 2 or multiples of 4 work best. default 16/128");
+        register_param(m_specify_source,
+                                "specify_source",
+                                "if true then source angle is read from source_segment, otherwise auto-calculated");
+        register_param(m_source_segment,
+                                "source_segment",
+                                "centre of source segment if specify_source is true. 0 is in +x and rotates counter clockwise"); 
         register_param(m_direction,
                                 "direction",
                                 "direction to reflect in, either 'cw' or 'ccw'. default 'cw'");
@@ -94,6 +102,11 @@ private:
         }
         set_edge_threshold(static_cast<std::uint32_t>(m_edge_threshold * 4));
 
+        if (m_specify_source) {
+            set_source_segment(m_source_segment * 3.141592654 * 2);
+        } else {
+            set_source_segment(-1);
+        }
         m_background[0] = static_cast<std::uint8_t>(m_bg_colour.r * 255);
         m_background[1] = static_cast<std::uint8_t>(m_bg_colour.g * 255);
         m_background[2] = static_cast<std::uint8_t>(m_bg_colour.b * 255);
@@ -115,6 +128,9 @@ private:
 
     f0r_param_color m_bg_colour;
     double m_bg_alpha;
+
+    bool m_specify_source;
+    double m_source_segment;
 
     std::uint8_t m_background[4];
 

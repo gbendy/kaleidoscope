@@ -34,6 +34,7 @@ m_preferred_corner(Corner::BR),
 m_preferred_search_dir(Direction::CLOCKWISE),
 m_background_colour(nullptr),
 m_edge_threshold(0),
+m_source_segment(-1),
 m_n_segments(0),
 m_start_angle(0),
 m_segment_width(0)
@@ -124,6 +125,17 @@ void* Kaleidoscope::get_background_colour() const
     return m_background_colour;
 }
 
+std::int32_t Kaleidoscope::set_source_segment(float angle)
+{
+    m_source_segment = angle;
+    return 0;
+}
+
+float Kaleidoscope::get_source_segment() const
+{
+    return m_source_segment;
+}
+
 static double distance_sq(double x1, double y1, double x2, double y2)
 {
     return std::pow(x1 - x2, 2) + std::pow(y1 - y2, 2);
@@ -137,43 +149,46 @@ std::int32_t inc_idx(std::int32_t start_idx, std::int32_t inc, std::int32_t max)
 
 void Kaleidoscope::init()
 {
-    // find origin rotation
-    std::uint32_t corners[4][2] = {
-        { 0, 1 },
-        { 1, 1 },
-        { 1, 0 },
-        { 0, 0 }
-    };
-    std::int32_t start_idx(0);
-    switch (m_preferred_corner) {
+    m_n_segments = m_segmentation * 2;
+    m_segment_width = MF_PI * 2 / m_n_segments;
+
+    if (m_source_segment < 0) {
+        // find origin rotation
+        std::uint32_t corners[4][2] = {
+            { 0, 1 },
+            { 1, 1 },
+            { 1, 0 },
+            { 0, 0 }
+        };
+        std::int32_t start_idx(0);
+        switch (m_preferred_corner) {
         case Corner::TL: start_idx = 0; break;
         case Corner::TR: start_idx = 1; break;
         case Corner::BR: start_idx = 2; break;
         case Corner::BL: start_idx = 3; break;
-    }
-    std::int32_t dir = m_preferred_search_dir == Direction::CLOCKWISE ? 1 : -1;
-    std::uint32_t idx = start_idx;
-    float origin_x = m_origin_x;
-    float origin_y = m_origin_y;
-    double dist = distance_sq(origin_x, origin_y, corners[idx][0], corners[idx][1]);
-    std::int32_t corner = idx;
-    idx = inc_idx(idx, dir, 4);
-    while (idx != start_idx) {
-        double d = distance_sq(origin_x, origin_y, corners[idx][0], corners[idx][1]);
-        if (d > dist) {
-            dist = d;
-            corner = idx;
         }
+        std::int32_t dir = m_preferred_search_dir == Direction::CLOCKWISE ? 1 : -1;
+        std::uint32_t idx = start_idx;
+        float origin_x = m_origin_x;
+        float origin_y = m_origin_y;
+        double dist = distance_sq(origin_x, origin_y, corners[idx][0], corners[idx][1]);
+        std::int32_t corner = idx;
         idx = inc_idx(idx, dir, 4);
+        while (idx != start_idx) {
+            double d = distance_sq(origin_x, origin_y, corners[idx][0], corners[idx][1]);
+            if (d > dist) {
+                dist = d;
+                corner = idx;
+            }
+            idx = inc_idx(idx, dir, 4);
+        }
+
+        float start_line_x = corners[corner][0] - origin_x;
+        float start_line_y = corners[corner][1] - origin_y;
+        m_start_angle = std::atan2(-start_line_y, start_line_x) + MF_PI;
+    } else {
+        m_start_angle = -(m_source_segment + MF_PI) - m_segment_width / 2;
     }
-
-    float start_line_x = corners[corner][0] - origin_x;
-    float start_line_y = corners[corner][1] - origin_y;
-    m_start_angle = std::atan2(-start_line_y, start_line_x) + MF_PI;
-
-    m_n_segments = m_segmentation * 2;
-    m_segment_width = MF_PI * 2 / m_n_segments;
-
 }
 
 Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x, std::uint32_t y)

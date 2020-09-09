@@ -28,7 +28,7 @@ public:
      * @param x x coordinate of the origin
      * @param y y coordinate of the origin
      * @return 
-     *          -  0:  Success
+     *          -  0: Success
      *          - -1: Error
      *          - -2: Parameter out of range
      */
@@ -51,7 +51,7 @@ public:
      * Defaults to 16.
      * @param segmentation the segmentation value
      * @return
-     *          -  0:  Success
+     *          -  0: Success
      *          - -1: Error
      *          - -2: Parameter out of range
      */
@@ -69,7 +69,7 @@ public:
      * Defaults to 0
      * @param threshold the threshold in pixels.
      * @return
-     *          -  0:  Success
+     *          -  0: Success
      *          - -1: Error
      */
     std::int32_t set_edge_threshold(std::uint32_t threshold);
@@ -94,11 +94,11 @@ public:
     };
 
     /**
-     * Sets the direction that segments rotate in.
+     * Sets the direction that the source segment rotates in.
      * Defaults to Direction::CLOCKWISE
      * @param direction the direction
      * @return
-     *          -  0:  Success
+     *          -  0: Success
      *          - -1: Error
      */
     std::int32_t set_segment_direction(Direction direction);
@@ -110,13 +110,15 @@ public:
 
     /**
      * Segments are always aligned to the furthest corner of the image from the origin. 
+     * The source segment has it's edge on a line from the origin to the furthest corner,
+     * and extends in the direction given by #set_segment_direction.
      * If multiple corners are equidistant from the origin then this indicates which
      * corner is preferred. The algorithm searches from this corner, in the direction
      * specified in #set_preferred_corner_search_direction to find the furthest corner.
      * Defaults to Corner::BR
      * @param corner the preferred corner
      * @return
-     *          -  0:  Success
+     *          -  0: Success
      *          - -1: Error
      */
     std::int32_t set_preferred_corner(Corner corner);
@@ -131,7 +133,7 @@ public:
      * Defaults to Direction::CLOCKWISE
      * @param direction the search direction
      * @return
-     *          -  0:  Success
+     *          -  0: Success
      *          - -1: Error
      */
     std::int32_t set_preferred_corner_search_direction(Direction direction);
@@ -149,7 +151,7 @@ public:
      * @param colour the background colour, if \c nullptr then the output buffer is not modified
      * if reflection does not land in the source segment.
      * @return
-     *          -  0:  Success
+     *          -  0: Success
      *          - -1: Error
      */
     std::int32_t set_background_colour(void* colour);
@@ -160,13 +162,30 @@ public:
     void *get_background_colour() const;
 
     /**
+     * Allows to explicitly specify the location of the source segment. 0 radians is in positive
+     * horizontal direction and rotates anti-clockwise.
+     * @param angle If positive then the angle of the centre of the source segment in radians. If negative
+     * (the default) then the source segment is auto calculated based on origin, preferred corner, 
+     * direction and corner search direction.
+     * @return
+     *          -  0: Success
+     *          - -1: Error
+     */
+    std::int32_t set_source_segment(float angle);
+
+    /**
+     * Returns the source segment
+     */
+    float get_source_segment() const;
+
+    /**
      * Applies the kaleidoscope effect to \p in_frame and returns it in \p out_frame.
      * Each parameter must point to enough memory to contain the image specified in the 
      * constructor
      * @param in_frame the input frame to process
      * @param out_frame receives the output image
      * @return
-     *          -  0:  Success
+     *          -  0: Success
      *          - -1: Error
      *          - -2: Invalid parameter (nullptr)
      */
@@ -177,7 +196,7 @@ public:
      * source segment and it reflects in the direction of the adjacent pure blue segment.
      * @param out_frame receives the output image
      * @return
-     *          -  0:  Success
+     *          -  0: Success
      *          - -1: Error
      *          - -2: Invalid parameter (nullptr)
      */
@@ -222,6 +241,8 @@ private:
 
     void* m_background_colour;
     std::uint32_t m_edge_threshold;
+
+    float m_source_segment;
 
     std::uint32_t m_n_segments;
     float m_start_angle;

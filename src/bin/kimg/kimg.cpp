@@ -21,6 +21,8 @@ struct Options {
 
     std::uint32_t edge_threshold;
 
+    float start_angle;
+
     Options():
         segmentation(16),
         direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE),
@@ -28,7 +30,8 @@ struct Options {
         origin_y(0.5f),
         corner(libkaleidoscope::Kaleidoscope::Corner::BL),
         corner_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE),
-        edge_threshold(0)
+        edge_threshold(0),
+        start_angle(-1)
     {
         bg_colour[0] = 0xff;
         bg_colour[1] = 0x00;
@@ -38,7 +41,7 @@ struct Options {
 
 void print_usage(const char* arg0)
 {
-    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb ] [ -t threshold ] infile outfile" << std::endl;
+    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb ] [ -t threshold ] [ -a angle ] infile outfile" << std::endl;
 }
 
 std::string to_string(libkaleidoscope::Kaleidoscope::Direction d)
@@ -76,6 +79,7 @@ void print_help(const char* arg0)
     std::cerr << "    -cd cw|ccw        search direction for source segment   (default " << to_string(o.corner_direction) << ")" << std::endl;
     std::cerr << "    -b  rrggbb        background colour as a hex color code (default " << to_string(o.bg_colour) << ")" << std::endl;
     std::cerr << "    -t  integer       edge threshold                        (default " << o.edge_threshold << ")" << std::endl;
+    std::cerr << "    -a  float         start angle in degrees" << std::endl;
     std::cerr << "    infile            input PBM (P6) image" << std::endl;
     std::cerr << "    outfile           output PBM (P6) image" << std::endl;
 }
@@ -201,6 +205,15 @@ Options parse_options(int argc, char** argv)
                 if (ss.fail() || !ss.eof()) {
                     throw "Could not convert -t argument " + std::string(argv[i]) + " to an integer.";
                 }
+            } else if (arg == "-a") {
+                // start angle
+                i++;
+                VALIDATE_IDX("-a has no argument");
+                std::stringstream ss(argv[i]);
+                ss >> options.start_angle;
+                if (ss.fail() || !ss.eof()) {
+                    throw "Could not convert -a argument " + std::string(argv[i]) + " to a float.";
+                }
             } else if (arg == "-h") {
                 print_help(argv[0]);
                 return Options();
@@ -246,6 +259,7 @@ int main(int argc, char** argv)
     k.set_preferred_corner_search_direction(opts.corner_direction);
     k.set_background_colour(opts.bg_colour);
     k.set_edge_threshold(opts.edge_threshold);
+    k.set_source_segment(opts.start_angle * 3.14159254f / 180);
 
     k.process(frame.data.get(), out_frame.data.get());
     libio::write_pbm(opts.out_file.c_str(), out_frame);
