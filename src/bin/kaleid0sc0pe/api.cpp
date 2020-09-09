@@ -10,9 +10,9 @@ public:
         m_origin_x(0.5),
         m_origin_y(0.5),
         m_segmentation(16/128.0),
-        m_direction("cw"),
-        m_corner("tl"),
-        m_corner_direction("cw"),
+        m_direction(true),
+        m_corner(0),
+        m_corner_direction(true),
         m_edge_threshold(0),
         m_bg_alpha(1),
         m_specify_source(false),
@@ -39,17 +39,17 @@ public:
                                 "source_segment",
                                 "centre of source segment if specify_source is true. 0 is in +x and rotates counter clockwise"); 
         register_param(m_direction,
-                                "direction",
-                                "direction to reflect in, either 'cw' or 'ccw'. default 'cw'");
+                                "segment_clockwise",
+                                "if true segments rotate clockwise, otherwise counter clockwise");
         register_param(m_edge_threshold,
                                 "edge_threshold",
                                 "edge threshold / 4, reflections outside the image but within this distance clamp to the edge. default 0");
         register_param(m_corner,
                                 "preferred_corner",
-                                "preferred corner for source segment, either 'tl', 'tr', 'bl' or 'br'. default 'bl'");
+                                "preferred corner, 0 is top right, 0.25 top left, 0.5 bottom left, 0.75 bottom right");
         register_param(m_corner_direction,
                                 "corner_search",
-                                "direction to search in to find furthest corner, either 'cw' or 'ccw'. default 'cw'");
+                                "if true search clockwise for furthest corner, otherwise counter clockwise");
         register_param(m_bg_colour,
                                 "bg_color",
                                 "color to use if reflection lies outside of source image. default 1,0,1");
@@ -81,29 +81,29 @@ private:
     {
         set_origin(static_cast<float>(m_origin_x), static_cast<float>(m_origin_y));
         set_segmentation(static_cast<std::uint32_t>(m_segmentation * 128));
-        if (m_direction == "cw") {
+        if (m_direction) {
             set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE);
-        } else if (m_direction == "ccw") {
+        } else {
             set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE);
         }
-        if (m_corner == "tl") {
-            set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TL);
-        } else if (m_corner == "tr") {
+        if (m_corner < 0.25) {
             set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TR);
-        } else if (m_corner == "bl") {
+        } else if (m_corner < 0.5) {
+            set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TL);
+        } else if (m_corner < 0.75) {
             set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::BL);
-        } else if (m_corner == "br") {
+        } else {
             set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::BR);
         }
-        if (m_corner_direction == "cw") {
+        if (m_corner_direction) {
             set_preferred_corner_search_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE);
-        } else if (m_corner_direction == "ccw") {
+        } else {
             set_preferred_corner_search_direction(libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE);
         }
         set_edge_threshold(static_cast<std::uint32_t>(m_edge_threshold * 4));
 
         if (m_specify_source) {
-            set_source_segment(m_source_segment * 3.141592654 * 2);
+            set_source_segment(static_cast<float>(m_source_segment) * 3.141592654f * 2);
         } else {
             set_source_segment(-1);
         }
@@ -119,10 +119,10 @@ private:
     double m_origin_y;
 
     double m_segmentation;
-    std::string m_direction;
+    bool m_direction;
 
-    std::string m_corner;
-    std::string m_corner_direction;
+    double m_corner;
+    bool m_corner_direction;
 
     double m_edge_threshold;
 
