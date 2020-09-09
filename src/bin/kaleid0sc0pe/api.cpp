@@ -7,6 +7,8 @@ class kaleid0sc0pe : public frei0r::filter, public libkaleidoscope::Kaleidoscope
 public:
     kaleid0sc0pe(unsigned int width, unsigned int height):
         libkaleidoscope::Kaleidoscope(width,height,1,4),
+        m_origin_x(0.5),
+        m_origin_y(0.5),
         m_segmentation(16/128.0),
         m_direction("cw"),
         m_corner("tl"),
@@ -15,16 +17,16 @@ public:
         m_bg_alpha(1),
         m_dirty(true)
     {
-        m_origin.x = 0.5;
-        m_origin.y = 0.5;
-        
         m_bg_colour.r = 1.0;
         m_bg_colour.g = 0.0;
         m_bg_colour.b = 1.0;
 
-        register_param(m_origin,
-                                "origin",
-                                "origin of the kaleidoscope. default 0.5,0.5");
+        register_param(m_origin_x,
+                                "origin_x",
+                                "origin of the kaleidoscope in x. default 0.5");
+        register_param(m_origin_y,
+                                "origin_y",
+                                "origin of the kaleidoscope in y. default 0.5");
         register_param(m_segmentation,
                                 "segmentation",
                                 "kaleidoscope segmentation / 128, segmentations of 1, 2 or multiples of 4 work best. default 16/128");
@@ -69,7 +71,7 @@ public:
 private:
     void update_params()
     {
-        set_origin(static_cast<float>(m_origin.x), static_cast<float>(m_origin.y));
+        set_origin(static_cast<float>(m_origin_x), static_cast<float>(m_origin_y));
         set_segmentation(static_cast<std::uint32_t>(m_segmentation * 128));
         if (m_direction == "cw") {
             set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE);
@@ -100,7 +102,8 @@ private:
         m_dirty = false;
     }
 
-    f0r_param_position m_origin;
+    double m_origin_x;
+    double m_origin_y;
 
     double m_segmentation;
     std::string m_direction;
