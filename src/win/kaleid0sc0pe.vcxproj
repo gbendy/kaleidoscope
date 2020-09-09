@@ -164,6 +164,7 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClInclude Include="..\bin\kaleid0sc0pe\frei0r.h" />
+    <ClInclude Include="..\bin\kaleid0sc0pe\frei0r.hpp" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\bin\kaleid0sc0pe\api.cpp">

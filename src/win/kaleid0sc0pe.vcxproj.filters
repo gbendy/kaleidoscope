@@ -18,6 +18,9 @@
     <ClInclude Include="..\bin\kaleid0sc0pe\frei0r.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\bin\kaleid0sc0pe\frei0r.hpp">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="..\bin\kaleid0sc0pe\api.cpp">
