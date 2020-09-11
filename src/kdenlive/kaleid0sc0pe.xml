@@ -1,0 +1,37 @@
+<!DOCTYPE kpartgui>
+<effect tag="frei0r.kaleid0sc0pe" id="frei0r.kaleid0sc0pe">
+	<name>Kaleid0sc0pe</name>
+	<description>Does what a kaleidoscope does</description>
+	<author>Brendan Hack</author>
+	<parameter type="animated" name="origin_x" default="0.5" min="0" max="1000" factor="1000">
+		<name>Origin-X</name>
+	</parameter>
+	<parameter type="animated" name="origin_y" default="0.5" min="0" max="1000" factor="1000">
+		<name>Origin-Y</name>
+	</parameter>
+	<parameter type="animated" name="segmentation" default="0.5" min="1" max="128" factor="128">
+		<name>segmentation</name>
+	</parameter>
+	<parameter type="bool" name="specify_source" default="1">
+		<name>Manual source segment</name>
+	</parameter>
+	<parameter type="bool" name="segment_clockwise" default="1">
+		<name>Rotation direction</name>
+	</parameter>
+	<parameter type="animated" name="source_segment" default="0.5" min="0" max="1000" factor="1000">
+		<name>Source angle</name>
+	</parameter>
+	<parameter type="constant" name="edge_threshold" default="1.0" min="0" max="400" factor="400">
+		<name>Edge Threshold</name>
+	</parameter>
+	<parameter type="list" name="preferred_corner" default="0.0" paramlist="0.0;0.25;0.50;0.75">
+ 		<paramlistdisplay>Top Right,Top Left,Bottom Left,Bottom Right</paramlistdisplay>
+		<name>Preferred Corner</name>
+	</parameter>
+	<parameter type="color" name="bg_color" default="0x000000FF">
+		<name>Background Colour</name>
+	</parameter>
+	<parameter type="animated" name="alpha" default="1.0" min="0" max="255" factor="255">
+		<name>Background Alpha</name>
+	</parameter>
+</effect>
