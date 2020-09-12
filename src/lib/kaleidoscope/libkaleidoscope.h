@@ -2,6 +2,8 @@
 #define LIBKALEIDOSCOPE_LIBKALEIDOSCOPE_H 1
 
 #include <cstdint>
+#include <vector>
+#include <cmath>
 
 namespace libkaleidoscope {
 
@@ -215,6 +217,56 @@ private:
         float angle;                    ///< angle from this point to the start of the source segment
         std::uint32_t segment_number;   ///< segment number the point resides in
         float reflection_angle;         ///< angle from this point to the point it reflects
+        Direction segment_direction;    ///< direction that the segment is in from the source
+    };
+
+    struct Reflector {
+        float a;
+        float b;
+        float c;
+        float b2ma2;    // bb-aa
+        float tab;      // 2ab
+        float tac;      // 2ac
+        float a2pb2;    // aa+bb
+        float a2mb2;    // aa-bb
+        float tbc;      // 2bc
+
+        Reflector(float x1, float y1, float x2, float y2):
+            a(y1-y2),
+            b(x2-x1),
+            c(-1 * (a * x1 + b * y1))
+        {
+            derive();
+        }
+
+        Reflector(float x, float y, float angle) :
+            a(-std::sin(angle)),
+            b(cos(angle)),
+            c(-1 * (a * x + b * y))
+        {
+            derive();
+        }
+
+        void derive()
+        {
+            float aa = a * a;
+            float bb = b * b;
+
+            b2ma2 = bb - aa;
+            tab = 2 * a * b;
+            tac = 2 * a * c;
+            a2pb2 = aa + bb;
+            a2mb2 = aa - bb;
+            tbc = 2 * b * c;
+        }
+
+        void reflect(float& x, float& y)
+        {
+            float x1 = (b2ma2 * x - tab * y - tac) / a2pb2;
+            float y1 = (a2mb2 * y - tab * x - tbc) / a2pb2;
+            x = x1;
+            y = y1;
+        }
     };
 
     /// Calculates the reflection information for a given point.
@@ -242,11 +294,13 @@ private:
     void* m_background_colour;
     std::uint32_t m_edge_threshold;
 
-    float m_source_segment;
+    float m_source_segment_angle;
 
     std::uint32_t m_n_segments;
     float m_start_angle;
     float m_segment_width;
+
+    std::vector<Reflector> m_reflect_lines;
 };
 
 }

@@ -1,7 +1,6 @@
 // libkaleidoscope.cpp : Defines the functions for the static library.
 //
 #include "libkaleidoscope.h"
-#include <cmath>
 #include <memory>
 #include <cstring>
 
@@ -17,6 +16,8 @@
 #ifndef MF_2PI 
 #define MF_2PI 6.28318530717958647693f
 #endif
+
+#define USE_ROTATION 1
 
 namespace libkaleidoscope {
 
@@ -34,7 +35,7 @@ m_preferred_corner(Corner::BR),
 m_preferred_search_dir(Direction::CLOCKWISE),
 m_background_colour(nullptr),
 m_edge_threshold(0),
-m_source_segment(-1),
+m_source_segment_angle(-1),
 m_n_segments(0),
 m_start_angle(0),
 m_segment_width(0)
@@ -127,13 +128,13 @@ void* Kaleidoscope::get_background_colour() const
 
 std::int32_t Kaleidoscope::set_source_segment(float angle)
 {
-    m_source_segment = angle;
+    m_source_segment_angle = angle;
     return 0;
 }
 
 float Kaleidoscope::get_source_segment() const
 {
-    return m_source_segment;
+    return m_source_segment_angle;
 }
 
 static double distance_sq(double x1, double y1, double x2, double y2)
@@ -151,8 +152,9 @@ void Kaleidoscope::init()
 {
     m_n_segments = m_segmentation * 2;
     m_segment_width = MF_PI * 2 / m_n_segments;
+    m_reflect_lines.clear();
 
-    if (m_source_segment < 0) {
+    if (m_source_segment_angle < 0) {
         // find origin rotation
         std::uint32_t corners[4][2] = {
             { 0, 1 },
@@ -187,8 +189,14 @@ void Kaleidoscope::init()
         float start_line_y = corners[corner][1] - origin_y;
         m_start_angle = std::atan2(start_line_y, start_line_x) - m_segment_width / (m_segment_direction == Direction::CLOCKWISE ? 2 : -2);
     } else {
-        m_start_angle = m_source_segment;
+        m_start_angle = m_source_segment_angle;
     }
+#ifndef USE_ROTATION
+    float start_angle = m_start_angle + m_segment_width / 2;
+    for (std::uint32_t i = 0; i < m_segmentation; ++i) {
+        m_reflect_lines.push_back(Reflector(0,0, start_angle + m_segment_width * i));
+    }
+#endif
 }
 
 Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x, std::uint32_t y)
@@ -207,18 +215,22 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x,
     while (info.angle > MF_PI) {
         info.angle -= MF_2PI;
     }
+
     float ref_angle = std::fabs(info.angle) + m_segment_width / 2;
     info.segment_number = std::uint32_t(ref_angle / m_segment_width);
+    info.segment_direction = std::signbit(info.angle) ? Direction::CLOCKWISE : Direction::ANTICLOCKWISE;
+#ifdef USE_ROTATION
     if (info.segment_number) {
         info.reflection_angle = (info.segment_number * m_segment_width);
         if (info.segment_number % 2) {
             // reflect
             info.reflection_angle -= (m_segment_width - 2 * (ref_angle - info.reflection_angle));
         }
-        info.reflection_angle *= std::signbit(info.angle) ? 1 : -1;
+        info.reflection_angle *= info.segment_direction == Direction::CLOCKWISE ? 1 : -1;
     } else {
         info.reflection_angle = 0;
     }
+#endif
     return info;
 }
 
@@ -319,11 +331,27 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
             Reflect_info info = calculate_reflect_info(x, y);
 
             if (info.segment_number) {
+#ifdef USE_ROTATION
                 float cos_angle = std::cos(info.reflection_angle);
                 float sin_angle = std::sin(info.reflection_angle);
                 float source_x = (info.screen_x * cos_angle - info.screen_y * sin_angle + m_origin_x) * m_width;
                 float source_y = (-(info.screen_y * cos_angle + info.screen_x * sin_angle) + m_origin_y) * m_height;
-
+#else
+                float source_x = info.screen_x;
+                float source_y = info.screen_y;
+                if (info.segment_direction == Direction::ANTICLOCKWISE) {
+                    for (std::size_t i = info.segment_number - 1; i != 0; i--) {
+                        m_reflect_lines[i].reflect(source_x, source_y);
+                    }
+                    m_reflect_lines[0].reflect(source_x, source_y);
+                } else {
+                    for (std::size_t i = m_segmentation - info.segment_number; i < m_reflect_lines.size(); i++) {
+                        m_reflect_lines[i].reflect(source_x, source_y);
+                    }
+                }
+                source_x = (source_x + m_origin_x) * m_width;
+                source_y = (-source_y + m_origin_y) * m_height;
+#endif
                 if (source_x < 0 && -source_x <= m_edge_threshold) {
                     source_x = 0;
                 } else if (source_x >= m_width && source_x < m_width + m_edge_threshold) {
