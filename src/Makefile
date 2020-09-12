@@ -9,7 +9,7 @@ else
 CXXFLAGS+=-O2
 endif
 
-TREE=lib/kaleidoscope lib/io bin/ktest bin/kimg bin/kaleid0sc0pe
+TREE=lib/kaleidoscope lib/io bin/ktest bin/kimg bin/kperf bin/kaleid0sc0pe
 
 .PHONY: all clean
 
