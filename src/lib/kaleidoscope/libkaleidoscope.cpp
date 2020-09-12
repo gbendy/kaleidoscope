@@ -170,7 +170,7 @@ void Kaleidoscope::init()
         std::int32_t dir = m_preferred_search_dir == Direction::CLOCKWISE ? 1 : -1;
         std::uint32_t idx = start_idx;
         float origin_x = m_origin_x;
-        float origin_y = m_origin_y;
+        float origin_y = 1-m_origin_y;
         double dist = distance_sq(origin_x, origin_y, corners[idx][0], corners[idx][1]);
         std::int32_t corner = idx;
         idx = inc_idx(idx, dir, 4);
@@ -185,9 +185,9 @@ void Kaleidoscope::init()
 
         float start_line_x = corners[corner][0] - origin_x;
         float start_line_y = corners[corner][1] - origin_y;
-        m_start_angle = std::atan2(-start_line_y, start_line_x) + MF_PI;
+        m_start_angle = std::atan2(start_line_y, start_line_x) - m_segment_width / (m_segment_direction == Direction::CLOCKWISE ? 2 : -2);
     } else {
-        m_start_angle = -(m_source_segment + MF_PI) - m_segment_width / 2;
+        m_start_angle = m_source_segment;
     }
 }
 
@@ -199,21 +199,23 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x,
     info.y = y;
     info.screen_x = x / static_cast<float>(m_width) - m_origin_x;
     info.screen_y = -(y / static_cast<float>(m_height) - m_origin_y); // negated so +y is up
-    float direction_factor = (m_segment_direction == Direction::CLOCKWISE ? -1.0f : 1.0f);
-    info.angle = -direction_factor * (std::atan2(-info.screen_y, info.screen_x) + MF_PI - m_start_angle);
-    while (info.angle < 0) {
+
+    info.angle = std::atan2(info.screen_y, info.screen_x) - m_start_angle;
+    while (info.angle < -MF_PI) {
         info.angle += MF_2PI;
     }
-    while (info.angle > MF_2PI) {
+    while (info.angle > MF_PI) {
         info.angle -= MF_2PI;
     }
-    info.segment_number = std::uint32_t(info.angle / m_segment_width);
-
+    float ref_angle = std::fabs(info.angle) + m_segment_width / 2;
+    info.segment_number = std::uint32_t(ref_angle / m_segment_width);
     if (info.segment_number) {
-        info.reflection_angle = -direction_factor * (info.segment_number * m_segment_width);
+        info.reflection_angle = (info.segment_number * m_segment_width);
         if (info.segment_number % 2) {
-            info.reflection_angle += direction_factor * (m_segment_width - 2 * (info.angle + direction_factor * info.reflection_angle));            
+            // reflect
+            info.reflection_angle -= (m_segment_width - 2 * (ref_angle - info.reflection_angle));
         }
+        info.reflection_angle *= std::signbit(info.angle) ? 1 : -1;
     } else {
         info.reflection_angle = 0;
     }
