@@ -31,7 +31,7 @@ int main(int argc, char** argv)
         //std::chrono::microseconds duration(0);
         std::chrono::duration<float> duration(0);
 
-        std::size_t frame_count = 10;
+        std::size_t frame_count(100);
         std::cout << frame_count << " tests at segmentation " << seg << " (" << frame_in.width << "," << frame_in.height << ")" << std::endl;
         for (std::size_t i = 0; i < frame_count; ++i) {
             auto start = std::chrono::steady_clock::now();
