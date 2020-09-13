@@ -5,6 +5,9 @@
 #include <vector>
 #include <cmath>
 
+#define USE_ROTATION 1
+#define USE_NATIVE_SPACE 1
+
 namespace libkaleidoscope {
 
 /**
@@ -210,16 +213,17 @@ private:
 
     /// Defines reflection information for a given point in the frame
     struct Reflect_info {
-        std::uint32_t x;                ///< x coordinate
-        std::uint32_t y;                ///< y coordinate
         float screen_x;                 ///< x coordinate in screen space (range -0.5->0.5, left negative)
         float screen_y;                 ///< y coordinate in screen space (range -0.5->0.5, bottom negative)
         float angle;                    ///< angle from this point to the start of the source segment
         std::uint32_t segment_number;   ///< segment number the point resides in
+#ifdef USE_ROTATION
         float reflection_angle;         ///< angle from this point to the point it reflects
+#endif
         Direction segment_direction;    ///< direction that the segment is in from the source
     };
 
+#ifndef USE_ROTATION
     struct Reflector {
         float a;
         float b;
@@ -268,7 +272,7 @@ private:
             y = y1;
         }
     };
-
+#endif
     /// Calculates the reflection information for a given point.
     /// NB: init() must have already been called.
     /// @param x the x coordinate
@@ -276,14 +280,35 @@ private:
     /// @return the reflection information for the point
     Reflect_info calculate_reflect_info(std::uint32_t x, std::uint32_t y);
 
+    /// Converts coordinates to screen space
+    /// @param x x coordinate
+    /// @param y y coordinate
+    /// @param sx source x coordinate
+    /// @param sy source y coordinate
+    void to_screen(float& x, float& y, std::uint32_t sx, std::uint32_t sy);
+
+    /// Converts coordinates from screen space in place
+    /// @param x x coordinate
+    /// @param y y coordinate
+    void from_screen(float& x, float& y);
+
     std::uint32_t m_width;
     std::uint32_t m_height;
     std::uint32_t m_component_size;
     std::uint32_t m_num_components;
     std::uint32_t m_stride;
 
+#ifdef USE_NATIVE_SPACE
+    float m_aspect;
+#endif
     float m_origin_x;
     float m_origin_y;
+
+#ifdef USE_NATIVE_SPACE
+    float m_origin_native_x;
+    float m_origin_native_y;
+#endif
+
 
     std::uint32_t m_segmentation;
     Direction m_segment_direction;
@@ -300,7 +325,9 @@ private:
     float m_start_angle;
     float m_segment_width;
 
+#ifndef USE_ROTATION
     std::vector<Reflector> m_reflect_lines;
+#endif
 };
 
 }
