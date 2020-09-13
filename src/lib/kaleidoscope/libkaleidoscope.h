@@ -227,26 +227,14 @@ private:
     struct Reflector {
         float a;
         float b;
-        float c;
         float b2ma2;    // bb-aa
         float tab;      // 2ab
-        float tac;      // 2ac
         float a2pb2;    // aa+bb
         float a2mb2;    // aa-bb
-        float tbc;      // 2bc
 
-        Reflector(float x1, float y1, float x2, float y2):
-            a(y1-y2),
-            b(x2-x1),
-            c(-1 * (a * x1 + b * y1))
-        {
-            derive();
-        }
-
-        Reflector(float x, float y, float angle) :
+        Reflector(float angle) :
             a(-std::sin(angle)),
-            b(cos(angle)),
-            c(-1 * (a * x + b * y))
+            b(cos(angle))
         {
             derive();
         }
@@ -258,16 +246,14 @@ private:
 
             b2ma2 = bb - aa;
             tab = 2 * a * b;
-            tac = 2 * a * c;
             a2pb2 = aa + bb;
             a2mb2 = aa - bb;
-            tbc = 2 * b * c;
         }
 
         void reflect(float& x, float& y)
         {
-            float x1 = (b2ma2 * x - tab * y - tac) / a2pb2;
-            float y1 = (a2mb2 * y - tab * x - tbc) / a2pb2;
+            float x1 = (b2ma2 * x - tab * y) / a2pb2;
+            float y1 = (a2mb2 * y - tab * x) / a2pb2;
             x = x1;
             y = y1;
         }

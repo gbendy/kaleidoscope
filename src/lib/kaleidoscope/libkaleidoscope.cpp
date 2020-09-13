@@ -226,7 +226,7 @@ void Kaleidoscope::init()
 #ifndef USE_ROTATION
     float start_angle = m_start_angle + m_segment_width / 2;
     for (std::uint32_t i = 0; i < m_segmentation; ++i) {
-        m_reflect_lines.push_back(Reflector(0,0, start_angle + m_segment_width * i));
+        m_reflect_lines.push_back(Reflector(start_angle + m_segment_width * i));
     }
 #endif
 }
