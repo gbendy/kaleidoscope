@@ -246,7 +246,7 @@ int main(int argc, char** argv)
 
     libkio::Frame frame(libkio::read_pbm(opts.in_file.c_str()));
     if (frame.width == 0) {
-        std::cerr << "Error: unable to read file " << argv[1] << std::endl;
+        std::cerr << "Error: unable to read file " << opts.in_file << std::endl;
         return -2;
     }
     libkaleidoscope::Kaleidoscope k(frame.width, frame.height, frame.comp_size, frame.n_comp);
