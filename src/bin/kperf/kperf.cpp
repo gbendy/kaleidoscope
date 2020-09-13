@@ -5,7 +5,7 @@
 #include <iostream>
 #include <vector>
 
-void report(const libio::Frame& frame, std::uint32_t frame_count, const std::chrono::duration<float>& duration)
+void report(const libio::Frame& frame, std::size_t frame_count, const std::chrono::duration<float>& duration)
 {
     std::cout << frame_count << "x" << frame.width << "x" << frame.height << " took " << duration.count() << "s" << std::endl;
     std::cout << "    " << static_cast<float>(frame_count) / duration.count() << " f/sec" << std::endl;
@@ -31,7 +31,7 @@ int main(int argc, char** argv)
         //std::chrono::microseconds duration(0);
         std::chrono::duration<float> duration(0);
 
-        std::size_t frame_count = 100;
+        std::size_t frame_count = 10;
         std::cout << frame_count << " tests at segmentation " << seg << " (" << frame_in.width << "," << frame_in.height << ")" << std::endl;
         for (std::size_t i = 0; i < frame_count; ++i) {
             auto start = std::chrono::steady_clock::now();
