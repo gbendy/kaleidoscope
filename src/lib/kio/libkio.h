@@ -1,10 +1,10 @@
-#ifndef LIBIO_LIBIO_H
-#define LIBIO_LIBIO_H 1
+#ifndef LIBKIO_LIBKIO_H
+#define LIBKIO_LIBKIO_H 1
 
 #include <string>
 #include <memory>
 
-namespace libio {
+namespace libkio {
 
 /// An image frame and it's related information
 /// \param width the image width

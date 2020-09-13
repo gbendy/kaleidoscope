@@ -1,8 +1,8 @@
-#include "libio.h"
+#include "libkio.h"
 #include <fstream>
 #include <climits>
 
-namespace libio {
+namespace libkio {
 
 template <typename T>
 T swap_endian(T u)
@@ -74,7 +74,7 @@ void write_pbm(const std::string& filename, const Frame& frame)
     out.close();
 }
 
-libio::Frame read_pbm(const std::string& filename)
+Frame read_pbm(const std::string& filename)
 {
     std::ifstream in(filename.c_str(), std::ios_base::binary | std::ios_base::out);
     if (!in.is_open()) {

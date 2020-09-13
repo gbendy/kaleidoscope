@@ -1,5 +1,5 @@
 #include "libkaleidoscope.h"
-#include "libio.h"
+#include "libkio.h"
 #include <iostream>
 #include <iomanip>
 #include <sstream>
@@ -244,13 +244,13 @@ int main(int argc, char** argv)
         return -1;
     }
 
-    libio::Frame frame(libio::read_pbm(opts.in_file.c_str()));
+    libkio::Frame frame(libkio::read_pbm(opts.in_file.c_str()));
     if (frame.width == 0) {
         std::cerr << "Error: unable to read file " << argv[1] << std::endl;
         return -2;
     }
     libkaleidoscope::Kaleidoscope k(frame.width, frame.height, frame.comp_size, frame.n_comp);
-    libio::Frame out_frame(frame.width, frame.height, frame.comp_size, frame.n_comp);
+    libkio::Frame out_frame(frame.width, frame.height, frame.comp_size, frame.n_comp);
 
     k.set_segmentation(opts.segmentation);
     k.set_segment_direction(opts.direction);
@@ -262,7 +262,7 @@ int main(int argc, char** argv)
     k.set_source_segment(opts.start_angle * 3.14159254f / 180);
 
     k.process(frame.data.get(), out_frame.data.get());
-    libio::write_pbm(opts.out_file.c_str(), out_frame);
+    libkio::write_pbm(opts.out_file.c_str(), out_frame);
 
     return 0;
 }
