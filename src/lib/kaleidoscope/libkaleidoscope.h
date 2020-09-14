@@ -5,7 +5,10 @@
 #include <vector>
 #include <cmath>
 
+#ifndef USE_REFLECTION
 #define USE_ROTATION 1
+#endif
+
 #define USE_NATIVE_SPACE 1
 
 namespace libkaleidoscope {
