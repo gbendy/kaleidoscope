@@ -2,6 +2,14 @@
 
 A [frei0r](https://frei0r.dyne.org "frei0r") plugin and library to produce a kaleidoscope effect on an image or video frame.
 
+
+| ["Colorful Stones"](https://www.flickr.com/photos/82955120@N05/7995277667 "Colorful Stones") by ["Bold Frontiers"](https://www.flickr.com/photos/82955120@N05 "Bold Frontiers") | `kimg -s 16 -c tr` |
+| - | - |
+| [![Colorful Stones](images/colorful_stones-400.jpg)](images/colorful_stones.jpg)  | [![Kaleidoscoped Colorful Stones](images/colorful_stones-tr16-400.jpg)](images/colorful_stones-tr16.jpg)  |
+|Licensed under [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/?ref=ccsearch&atype=html "CC BY 2.0") | Segmentation 16, source segment centred to top right|
+
+Allows for specification of number of segments (mirrors), auto selection of optimal source reflection segment, placement of origin and much more!
+
 # Build
 
 Builds with cmake. No dependencies
@@ -27,6 +35,10 @@ $ cmake -G "Visual Studio 16 2019" ../kaleidoscope
 ```
 
 Then open the solution in Visual Studio 2019.
+
+## Custom build options
+
+There is only one build option `-DUSE_REFLECTION`. When enabled then actualy reflections will be calculated rather than reflection by rotation. This can be quicker for lower segmentation values but slower for larger. The default rotation method is constant speed regardless of segmentation.
 
 # Contributors
 
