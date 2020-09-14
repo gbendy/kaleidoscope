@@ -1,4 +1,4 @@
-add_library(kio libkio.cpp)
+add_library(kio libkio.cpp libkio.h)
 
 target_include_directories(kio
     INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}

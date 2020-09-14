@@ -1,4 +1,4 @@
-add_library(kaleid0sc0pe SHARED api.cpp frei0r_1_2.def)
+add_library(kaleid0sc0pe SHARED api.cpp frei0r.h frei0r.hpp frei0r_1_2.def)
 
 target_link_libraries(kaleid0sc0pe PUBLIC kaleidoscope)
 
