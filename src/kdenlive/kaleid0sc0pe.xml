@@ -15,7 +15,8 @@
 	<parameter type="bool" name="specify_source" default="1">
 		<name>Manual source segment</name>
 	</parameter>
-	<parameter type="bool" name="segment_clockwise" default="1">
+	<parameter type="list" name="segmentation_direction" default="1.0" paramlist="0.0;0.5;1.0">
+ 		<paramlistdisplay>Centred,Anti Clockwise,Clockwise</paramlistdisplay>
 		<name>Rotation direction</name>
 	</parameter>
 	<parameter type="animated" name="source_segment" default="0.5" min="0" max="1000" factor="1000">

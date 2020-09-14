@@ -25,7 +25,7 @@ struct Options {
 
     Options():
         segmentation(16),
-        direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE),
+        direction(libkaleidoscope::Kaleidoscope::Direction::NONE),
         origin_x(0.5f),
         origin_y(0.5f),
         corner(libkaleidoscope::Kaleidoscope::Corner::BL),
@@ -41,12 +41,14 @@ struct Options {
 
 void print_usage(const char* arg0)
 {
-    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb ] [ -t threshold ] [ -a angle ] infile outfile" << std::endl;
+    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d c|cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb ] [ -t threshold ] [ -a angle ] infile outfile" << std::endl;
 }
 
 std::string to_string(libkaleidoscope::Kaleidoscope::Direction d)
 {
-    return d == libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE ? "ccw" : "cw";
+    if (d == libkaleidoscope::Kaleidoscope::Direction::NONE) return "c";
+    if (d == libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE) return "cw";
+    return "ccw";
 }
 
 std::string to_string(libkaleidoscope::Kaleidoscope::Corner c)
@@ -72,7 +74,7 @@ void print_help(const char* arg0)
     Options o;
     std::cerr << std::endl;
     std::cerr << "    -s  segmentation  kaleidoscope segmentation             (default " << o.segmentation << ")" << std::endl;
-    std::cerr << "    -d  cw|ccw        kaleidoscope direction                (default " << to_string(o.direction) << ")" << std::endl;
+    std::cerr << "    -d  c|cw|ccw      kaleidoscope direction                (default " << to_string(o.direction) << ")" << std::endl;
     std::cerr << "    -x  float         x centre point of kaleidoscope        (default " << o.origin_x << ")" << std::endl;
     std::cerr << "    -y  float         y centre point of kaleidoscope        (default " << o.origin_x << ")" << std::endl;
     std::cerr << "    -c  tl|tr|bl|br   preferred corner of source segment    (default " << to_string(o.corner) << ")" << std::endl;
@@ -106,8 +108,10 @@ Options parse_options(int argc, char** argv)
                 i++;
                 VALIDATE_IDX("-d has no argument");
                 std::string value(argv[i]);
-                if (value != "cw" && value != "ccw") {
-                    throw "-d argument " + std::string(argv[i]) + " is not cw or ccw.";
+                if (value != "c" && value != "cw" && value != "ccw") {
+                    throw "-d argument " + std::string(argv[i]) + " is not c cw or ccw.";
+                } else if (value == "c") {
+                    options.direction = libkaleidoscope::Kaleidoscope::Direction::NONE;
                 } else if (value == "cw") {
                     options.direction = libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE;
                 } else {

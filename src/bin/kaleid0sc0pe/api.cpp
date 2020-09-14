@@ -10,7 +10,7 @@ public:
         m_origin_x(0.5),
         m_origin_y(0.5),
         m_segmentation(16/128.0),
-        m_direction(true),
+        m_direction(1.0),
         m_corner(0),
         m_corner_direction(true),
         m_edge_threshold(0),
@@ -39,8 +39,8 @@ public:
                                 "source_segment",
                                 "centre of source segment if specify_source is true. 0 is in +x and rotates counter clockwise"); 
         register_param(m_direction,
-                                "segment_clockwise",
-                                "if true segments rotate clockwise, otherwise counter clockwise");
+                                "segmentation_direction",
+                                "segmentation direction, < 1/3 is none, < 2/3 is counter clockwise, otherwise clockwise");
         register_param(m_edge_threshold,
                                 "edge_threshold",
                                 "edge threshold / 4, reflections outside the image but within this distance clamp to the edge. default 0");
@@ -81,10 +81,12 @@ private:
     {
         set_origin(static_cast<float>(m_origin_x), static_cast<float>(m_origin_y));
         set_segmentation(static_cast<std::uint32_t>(m_segmentation * 128));
-        if (m_direction) {
-            set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE);
-        } else {
+        if (m_direction < 1/3.0) {
+            set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::NONE);
+        } else if (m_direction < 2/3.0) {
             set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE);
+        } else {
+            set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE);
         }
         if (m_corner < 0.25) {
             set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TR);
@@ -119,7 +121,7 @@ private:
     double m_origin_y;
 
     double m_segmentation;
-    bool m_direction;
+    double m_direction;
 
     double m_corner;
     bool m_corner_direction;

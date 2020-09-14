@@ -95,12 +95,15 @@ public:
     ///  Defines an angular direction
     enum class Direction {
         CLOCKWISE = 0,
-        ANTICLOCKWISE
+        ANTICLOCKWISE,
+        NONE
     };
 
     /**
-     * Sets the direction that the source segment rotates in.
-     * Defaults to Direction::CLOCKWISE
+     * Sets the direction that the source segment rotates in. If
+     * Direction::NONE then the source segment is centred on the corner.
+     * Otherwise it extends in the given direction.
+     * Defaults to Direction::NONE
      * @param direction the direction
      * @return
      *          -  0: Success
@@ -114,8 +117,9 @@ public:
     Direction get_segment_direction() const;
 
     /**
-     * Segments are always aligned to the furthest corner of the image from the origin. 
-     * The source segment has it's edge on a line from the origin to the furthest corner,
+     * Unless directly specified with #set_source_segment segments are always aligned to
+     * the furthest corner of the image from the origin. 
+     * The source segment has it's edge (or centre) on a line from the origin to the furthest corner,
      * and extends in the direction given by #set_segment_direction.
      * If multiple corners are equidistant from the origin then this indicates which
      * corner is preferred. The algorithm searches from this corner, in the direction
@@ -140,6 +144,7 @@ public:
      * @return
      *          -  0: Success
      *          - -1: Error
+     *          - -2: Invalid parameter (\p direction cannot by Direction::NONE)
      */
     std::int32_t set_preferred_corner_search_direction(Direction direction);
 

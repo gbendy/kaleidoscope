@@ -35,7 +35,7 @@ m_origin_native_x(m_origin_x * width),
 m_origin_native_y(m_origin_y * height),
 #endif
 m_segmentation(16),
-m_segment_direction(Direction::CLOCKWISE),
+m_segment_direction(Direction::NONE),
 m_preferred_corner(Corner::BR),
 m_preferred_search_dir(Direction::CLOCKWISE),
 m_background_colour(nullptr),
@@ -114,6 +114,9 @@ Kaleidoscope::Corner Kaleidoscope::get_preferred_corner() const
 
 std::int32_t Kaleidoscope::set_preferred_corner_search_direction(Direction direction)
 {
+    if (direction == Direction::NONE) {
+        return -2;
+    }
     m_preferred_search_dir = direction;
     m_n_segments = 0;
     return 0;
@@ -212,9 +215,13 @@ void Kaleidoscope::init()
         float start_line_x = corners[corner][0] - origin_x;
         float start_line_y = corners[corner][1] - origin_y;
 #ifdef USE_NATIVE_SPACE
-        m_start_angle = std::atan2(start_line_y, start_line_x) - m_segment_width / (m_segment_direction == Direction::CLOCKWISE ? -2 : 2);
+        m_start_angle = std::atan2(start_line_y, start_line_x) - (m_segment_direction == Direction::NONE ?
+                                                                    0 :
+                                                                    (m_segment_width / (m_segment_direction == Direction::CLOCKWISE ? -2 : 2)));
 #else
-        m_start_angle = std::atan2(start_line_y, start_line_x) - m_segment_width / (m_segment_direction == Direction::CLOCKWISE ? 2 : -2);
+        m_start_angle = std::atan2(start_line_y, start_line_x) - (m_segment_direction == Direction::NONE ?
+                                                                    0 :
+                                                                    (m_segment_width / (m_segment_direction == Direction::CLOCKWISE ? 2 : -2)));
 #endif
     } else {
 #ifdef USE_NATIVE_SPACE
