@@ -22,6 +22,9 @@
 	<parameter type="animated" name="source_segment" default="0.5" min="0" max="1000" factor="1000">
 		<name>Source angle</name>
 	</parameter>
+	<parameter type="bool" name="reflect_edges" default="1">
+		<name>Reflect into edges</name>
+	</parameter>
 	<parameter type="constant" name="edge_threshold" default="1.0" min="0" max="400" factor="400">
 		<name>Edge Threshold</name>
 	</parameter>
