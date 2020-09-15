@@ -19,6 +19,8 @@ struct Options {
 
     std::uint8_t bg_colour[3];
 
+    bool bg_set;
+
     std::uint32_t edge_threshold;
 
     float start_angle;
@@ -30,6 +32,7 @@ struct Options {
         origin_y(0.5f),
         corner(libkaleidoscope::Kaleidoscope::Corner::BL),
         corner_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE),
+        bg_set(false),
         edge_threshold(0),
         start_angle(-1)
     {
@@ -41,7 +44,7 @@ struct Options {
 
 void print_usage(const char* arg0)
 {
-    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d c|cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb ] [ -t threshold ] [ -a angle ] infile outfile" << std::endl;
+    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d c|cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb] [-t threshold] [-a angle] infile outfile" << std::endl;
 }
 
 std::string to_string(libkaleidoscope::Kaleidoscope::Direction d)
@@ -200,6 +203,7 @@ Options parse_options(int argc, char** argv)
                 } catch (const std::exception&) {
                     throw "-b argument " + std::string(argv[i]) + " is not a colour code.";
                 }
+                options.bg_set = true;
             } else if (arg == "-t") {
                 // edge threshold
                 i++;
@@ -237,6 +241,16 @@ Options parse_options(int argc, char** argv)
         return Options();
 
     }
+    if (options.in_file == "") {
+        std::cerr << "Error: No input file specified." << std::endl;
+        print_usage(argv[0]);
+        return Options();
+    }
+    if (options.out_file == "") {
+        std::cerr << "Error: No output file specified." << std::endl;
+        print_usage(argv[0]);
+        return Options();
+    }
     return options;
 }
 
@@ -261,6 +275,7 @@ int main(int argc, char** argv)
     k.set_origin(opts.origin_x, opts.origin_y);
     k.set_preferred_corner(opts.corner);
     k.set_preferred_corner_search_direction(opts.corner_direction);
+    k.set_reflect_edges(!opts.bg_set);
     k.set_background_colour(opts.bg_colour);
     k.set_edge_threshold(opts.edge_threshold);
     k.set_source_segment(opts.start_angle * 3.14159254f / 180);

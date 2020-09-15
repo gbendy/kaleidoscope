@@ -13,6 +13,7 @@ public:
         m_direction(1.0),
         m_corner(0),
         m_corner_direction(true),
+        m_reflect_edges(true),
         m_edge_threshold(0),
         m_bg_alpha(1),
         m_specify_source(false),
@@ -41,6 +42,9 @@ public:
         register_param(m_direction,
                                 "segmentation_direction",
                                 "segmentation direction, < 1/3 is none, < 2/3 is counter clockwise, otherwise clockwise");
+        register_param(m_reflect_edges,
+                                "reflect_edges",
+                                "if true then reflections that end up outside the source reflect back into it, otherwise the specified background colour is used.");
         register_param(m_edge_threshold,
                                 "edge_threshold",
                                 "edge threshold / 4, reflections outside the image but within this distance clamp to the edge. default 0");
@@ -52,11 +56,10 @@ public:
                                 "if true search clockwise for furthest corner, otherwise counter clockwise");
         register_param(m_bg_colour,
                                 "bg_color",
-                                "color to use if reflection lies outside of source image. default 1,0,1");
+                                "colour to use if reflection lies outside of source image and not reflecting back in. default 1,0,1");
         register_param(m_bg_alpha,
                                 "bg_alpha",
-                                "alpha to use if reflection lies outside of source image. default 1");
-
+                                "alpha to use if reflection lies outside of source image and not reflecting back in. default 1");
         set_background_colour(m_background);
     }
 
@@ -102,6 +105,7 @@ private:
         } else {
             set_preferred_corner_search_direction(libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE);
         }
+        set_reflect_edges(m_reflect_edges);
         set_edge_threshold(static_cast<std::uint32_t>(m_edge_threshold * 4));
 
         if (m_specify_source) {
@@ -125,6 +129,8 @@ private:
 
     double m_corner;
     bool m_corner_direction;
+
+    bool m_reflect_edges;
 
     double m_edge_threshold;
 

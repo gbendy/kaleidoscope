@@ -18,7 +18,7 @@ namespace libkaleidoscope {
  */
 class Kaleidoscope {
 public:
-    /***
+    /**
      * Constructor
      * @param width the frame width
      * @param height the frame height
@@ -31,7 +31,8 @@ public:
     /**
      * Sets the origin of the kaleidoscope effect. These are given in the range 0 -> 1.
      * Values other than 0.5,0.5 may end up reflecting outside the source image.
-     * These areas will be filled with the colour specified in #set_background_colour.
+     * These areas will be filled depending on the settings in #set_reflect_edges and
+     * #set_background_colour.
      * Defaults to 0.5, 0.5.
      * @param x x coordinate of the origin
      * @param y y coordinate of the origin
@@ -53,9 +54,11 @@ public:
     float get_origin_y() const;
     
     /**
-     * Sets the segmentation. Segmentation values other than 1, 2 or a multiple of
-     * 4 may end up reflecting outside the source image. These areas will be filled with
-     * the colour specified in #set_background_colour.
+     * Sets the segmentation resulting in \p segmentation * 2 segments in the output frame.
+     * Segmentation values that are 1, 2 or a multiple of 4, are oriented to an image corner
+     * and centred will always reflect back to the source segment. 
+     * Other settings may end up reflecting outside the source image. These areas will be filled
+     * depending on the settings in #set_reflect_edges and #set_background_colour.
      * Defaults to 16.
      * @param segmentation the segmentation value
      * @return
@@ -71,9 +74,9 @@ public:
     std::uint32_t get_segmentation() const;
     
     /**
-     * If a reflected pixel ends up outside the image then it gets filled with the
-     * background colour. Setting an edge threshold will clamp pixels that fall outside
-     * the image but within \p threshold pixels of the edge to the edge.
+     * When #set_reflect_edges is not true and a reflected pixel ends up outside the image
+     * we can clamp the pixels that fall outside the image but within \p threshold pixels
+     * of the edge to the edge.
      * Defaults to 0
      * @param threshold the threshold in pixels.
      * @return
@@ -97,9 +100,9 @@ public:
 
     ///  Defines an angular direction
     enum class Direction {
-        CLOCKWISE = 0,
-        ANTICLOCKWISE,
-        NONE
+        CLOCKWISE = 0,  //< Clockwise
+        ANTICLOCKWISE,  //< Anti Clockwise
+        NONE            //< No direction
     };
 
     /**
@@ -120,7 +123,7 @@ public:
     Direction get_segment_direction() const;
 
     /**
-     * Unless directly specified with #set_source_segment segments are always aligned to
+     * Unless directly specified with #set_source_segment the source segment is always aligned to
      * the furthest corner of the image from the origin. 
      * The source segment has it's edge (or centre) on a line from the origin to the furthest corner,
      * and extends in the direction given by #set_segment_direction.
@@ -157,9 +160,30 @@ public:
     Direction get_preferred_corner_search_direction() const;
 
     /**
-     * Sets the colour to use when the kaleidoscope effect for a point ends up outside the source
-     * segment. The data pointed to should be at least as wide as a pixel and must be valid for
-     * the lifetime of the class instance. The caller retains ownership.
+     * Reflected points can end up outside the source image depending on segmentation,
+     * source segment and origin settings. When this occurs three options are provided,
+     * lookup the pixel in a reflected tessellation of the original image, set the pixel
+     * to the background colour provided in #set_background_colour or write nothing to the
+     * output frame for that pixel.
+     * Defaults to \c true which is to lookup in the reflected tessellation.
+     * @param reflect if \c true then lookup in a reflection, if \c false use background color
+     * or do nothing if no background color was set.
+     * @return
+     *          -  0: Success
+     *          - -1: Error
+     */
+    std::int32_t set_reflect_edges(bool reflect);
+
+    /**
+     * Returns the reflect edges setting
+     */
+    bool get_reflect_edges() const;
+
+    /**
+     * If not reflecting edges then this sets the colour to use when the kaleidoscope effect 
+     * for a point ends up outside the source image. The data pointed to should be at least as
+     * wide as a pixel and must be valid for  the lifetime of the class instance.
+     * The caller retains ownership of the passed memory.
      * Defaults to \c nullptr
      * @param colour the background colour, if \c nullptr then the output buffer is not modified
      * if reflection does not land in the source segment.
@@ -175,9 +199,9 @@ public:
     void *get_background_colour() const;
 
     /**
-     * Allows to explicitly specify the location of the source segment. 0 radians is in positive
-     * horizontal direction and rotates anti-clockwise.
-     * @param angle If positive then the angle of the centre of the source segment in radians. If negative
+     * Allows to explicitly specify the location of the source segment. 0 radians is in the positive
+     * horizontal direction and +ve rotates anti-clockwise.
+     * @param angle If positive or 0 then the angle of the centre of the source segment in radians. If negative
      * (the default) then the source segment is auto calculated based on origin, preferred corner, 
      * direction and corner search direction.
      * @return
@@ -194,7 +218,7 @@ public:
     /**
      * Applies the kaleidoscope effect to \p in_frame and returns it in \p out_frame.
      * Each parameter must point to enough memory to contain the image specified in the 
-     * constructor
+     * constructor.
      * @param in_frame the input frame to process
      * @param out_frame receives the output image
      * @return
@@ -206,7 +230,7 @@ public:
 
     /**
      * Visualises the currently configured segmentation. The pure green segment is the 
-     * source segment and it reflects in the direction of the adjacent pure blue segment.
+     * source segment.
      * @param out_frame receives the output image
      * @return
      *          -  0: Success
@@ -222,7 +246,7 @@ private:
     /// Defines reflection information for a given point in the frame
     struct Reflect_info {
         float screen_x;                 ///< x coordinate in screen space (range -0.5->0.5, left negative)
-        float screen_y;                 ///< y coordinate in screen space (range -0.5->0.5, bottom negative)
+        float screen_y;                 ///< y coordinate in screen space (range -0.5->0.5, top negative)
         float angle;                    ///< angle from this point to the start of the source segment
         std::uint32_t segment_number;   ///< segment number the point resides in
 #ifdef USE_ROTATION
@@ -232,6 +256,7 @@ private:
     };
 
 #ifndef USE_ROTATION
+    // Defines a line through the origin in general line equation format
     struct Reflector {
         float a;
         float b;
@@ -242,7 +267,7 @@ private:
 
         Reflector(float angle) :
             a(-std::sin(angle)),
-            b(cos(angle))
+            b(std::cos(angle))
         {
             derive();
         }
@@ -309,6 +334,8 @@ private:
 
     Corner m_preferred_corner;
     Direction m_preferred_search_dir;
+
+    bool m_edge_reflect;
 
     void* m_background_colour;
     std::uint32_t m_edge_threshold;

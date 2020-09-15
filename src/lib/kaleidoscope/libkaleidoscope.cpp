@@ -38,6 +38,7 @@ m_segmentation(16),
 m_segment_direction(Direction::NONE),
 m_preferred_corner(Corner::BR),
 m_preferred_search_dir(Direction::CLOCKWISE),
+m_edge_reflect(true),
 m_background_colour(nullptr),
 m_edge_threshold(0),
 m_source_segment_angle(-1),
@@ -125,6 +126,17 @@ std::int32_t Kaleidoscope::set_preferred_corner_search_direction(Direction direc
 Kaleidoscope::Direction Kaleidoscope::get_preferred_corner_search_direction() const
 {
     return m_preferred_search_dir;
+}
+
+std::int32_t Kaleidoscope::set_reflect_edges(bool reflect)
+{
+    m_edge_reflect = reflect;
+    return 0;
+}
+
+bool Kaleidoscope::get_reflect_edges() const
+{
+    return m_edge_reflect;
 }
 
 std::int32_t Kaleidoscope::set_background_colour(void* colour)
@@ -407,23 +419,37 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
                 }
 #endif
                 from_screen(source_x, source_y);
-
-                if (source_x < 0 && -source_x <= m_edge_threshold) {
-                    source_x = 0;
-                } else if (source_x >= m_width && source_x < m_width + m_edge_threshold) {
-                    source_x = m_width - 1.0f;
-                }
-                if (source_y < 0 && -source_y <= m_edge_threshold) {
-                    source_y = 0;
-                } else if (source_y >= m_height && source_y < m_height + m_edge_threshold) {
-                    source_y = m_height - 1.0f;
-                }
-                if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
-                    (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
+                if (m_edge_reflect) {
+                    if (source_x < 0) {
+                        source_x = -source_x;
+                    } else if (source_x > m_width - 10e-4f) {
+                        source_x = m_width - (source_x - m_width + 10e-4f);
+                    } if (source_y < 0) {
+                        source_y = -source_y;
+                    }
+                    else if (source_y > m_height - 10e-4f) {
+                        source_y = m_height - (source_y - m_height + 10e-4f);
+                    }
                     const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
                     std::memcpy(out, src, pixel_size);
-                } else if (m_background_colour) {
-                    std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), pixel_size);
+                } else {
+                    if (source_x < 0 && -source_x <= m_edge_threshold) {
+                        source_x = 0;
+                    } else if (source_x >= m_width && source_x < m_width + m_edge_threshold) {
+                        source_x = m_width - 1.0f;
+                    }
+                    if (source_y < 0 && -source_y <= m_edge_threshold) {
+                        source_y = 0;
+                    } else if (source_y >= m_height && source_y < m_height + m_edge_threshold) {
+                        source_y = m_height - 1.0f;
+                    }
+                    if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
+                        (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
+                        const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
+                        std::memcpy(out, src, pixel_size);
+                    } else if (m_background_colour) {
+                        std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), pixel_size);
+                    }
                 }
             } else {
                 const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * y + pixel_size * x;
