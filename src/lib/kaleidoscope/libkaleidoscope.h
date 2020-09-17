@@ -229,6 +229,22 @@ public:
     std::int32_t process(const void* in_frame, void* out_frame);
 
     /**
+     * Sets the number of threads to use when processing.
+     * Default to 0.
+     * @p threading the nubmer of threads to use. \c 0, calculate automatically,
+     * otherwise the explicit thread count.
+     * @return
+     *          -  0: Success
+     *          - -1: Error
+     */
+    std::int32_t set_threading(std::uint32_t threading);
+
+    /**
+     * Returns the number of threads to use.
+     */
+    std::uint32_t get_threading() const;
+
+    /**
      * Visualises the currently configured segmentation. The pure green segment is the 
      * source segment.
      * @param out_frame receives the output image
@@ -310,7 +326,35 @@ private:
     /// @param x x coordinate
     /// @param y y coordinate
     void from_screen(float& x, float& y);
+    
+    /// A block of data to process
+    struct Block {
+        const std::uint8_t* in_frame;
+        std::uint8_t* out_frame;
+        std::uint32_t x_start;
+        std::uint32_t y_start;
+        std::uint32_t x_end;
+        std::uint32_t y_end;
 
+        /// \param in_frame the input frame
+        /// \param out_frame the output frame
+        /// \param x_start start x coordinate of block to process
+        /// \param y_start start y coordinate of block to process
+        /// \param x_end end x coordinate of block to process (inclusive)
+        /// \param y_end end y coordinate of block to process (inclusive)
+        Block(const std::uint8_t* _in_frame, std::uint8_t* _out_frame, std::uint32_t _x_start, std::uint32_t _y_start, std::uint32_t _x_end, std::uint32_t _y_end):
+            in_frame(_in_frame),
+            out_frame(_out_frame),
+            x_start(_x_start),
+            y_start(_y_start),
+            x_end(_x_end),
+            y_end(_y_end)
+        {}
+    };
+    
+    /// Process a block
+    void process_block(Block *block);
+        
     std::uint32_t m_width;
     std::uint32_t m_height;
     std::uint32_t m_component_size;
@@ -345,6 +389,8 @@ private:
     std::uint32_t m_n_segments;
     float m_start_angle;
     float m_segment_width;
+
+    std::uint32_t m_n_threads;
 
 #ifndef USE_ROTATION
     std::vector<Reflector> m_reflect_lines;

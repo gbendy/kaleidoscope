@@ -25,6 +25,8 @@ struct Options {
 
     float start_angle;
 
+    std::uint32_t threads;
+
     Options():
         segmentation(16),
         direction(libkaleidoscope::Kaleidoscope::Direction::NONE),
@@ -34,7 +36,8 @@ struct Options {
         corner_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE),
         bg_set(false),
         edge_threshold(0),
-        start_angle(-1)
+        start_angle(-1),
+        threads(0)
     {
         bg_colour[0] = 0xff;
         bg_colour[1] = 0x00;
@@ -44,7 +47,7 @@ struct Options {
 
 void print_usage(const char* arg0)
 {
-    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d c|cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb] [-t threshold] [-a angle] infile outfile" << std::endl;
+    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d c|cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb] [-e threshold] [-a angle] [-t threads] infile outfile" << std::endl;
 }
 
 std::string to_string(libkaleidoscope::Kaleidoscope::Direction d)
@@ -83,8 +86,9 @@ void print_help(const char* arg0)
     std::cerr << "    -c  tl|tr|bl|br   preferred corner of source segment    (default " << to_string(o.corner) << ")" << std::endl;
     std::cerr << "    -cd cw|ccw        search direction for source segment   (default " << to_string(o.corner_direction) << ")" << std::endl;
     std::cerr << "    -b  rrggbb        background colour as a hex color code (default " << to_string(o.bg_colour) << ")" << std::endl;
-    std::cerr << "    -t  integer       edge threshold                        (default " << o.edge_threshold << ")" << std::endl;
+    std::cerr << "    -e  integer       edge threshold                        (default " << o.edge_threshold << ")" << std::endl;
     std::cerr << "    -a  float         start angle in degrees" << std::endl;
+    std::cerr << "    -t  integer       number of threads to use.             (default " << o.threads << ")" << std::endl;
     std::cerr << "    infile            input PBM (P6) image" << std::endl;
     std::cerr << "    outfile           output PBM (P6) image" << std::endl;
 }
@@ -204,14 +208,14 @@ Options parse_options(int argc, char** argv)
                     throw "-b argument " + std::string(argv[i]) + " is not a colour code.";
                 }
                 options.bg_set = true;
-            } else if (arg == "-t") {
+            } else if (arg == "-e") {
                 // edge threshold
                 i++;
-                VALIDATE_IDX("-t has no argument");
+                VALIDATE_IDX("-e has no argument");
                 std::stringstream ss(argv[i]);
                 ss >> options.edge_threshold;
                 if (ss.fail() || !ss.eof()) {
-                    throw "Could not convert -t argument " + std::string(argv[i]) + " to an integer.";
+                    throw "Could not convert -e argument " + std::string(argv[i]) + " to an integer.";
                 }
             } else if (arg == "-a") {
                 // start angle
@@ -221,6 +225,15 @@ Options parse_options(int argc, char** argv)
                 ss >> options.start_angle;
                 if (ss.fail() || !ss.eof()) {
                     throw "Could not convert -a argument " + std::string(argv[i]) + " to a float.";
+                }
+            } else if (arg == "-t") {
+                // thread count
+                i++;
+                VALIDATE_IDX("-t has no argument");
+                std::stringstream ss(argv[i]);
+                ss >> options.threads;
+                if (ss.fail() || !ss.eof()) {
+                    throw "Could not convert -t argument " + std::string(argv[i]) + " to an integer.";
                 }
             } else if (arg == "-h") {
                 print_help(argv[0]);
@@ -279,6 +292,7 @@ int main(int argc, char** argv)
     k.set_background_colour(opts.bg_colour);
     k.set_edge_threshold(opts.edge_threshold);
     k.set_source_segment(opts.start_angle * 3.14159254f / 180);
+    k.set_threading(opts.threads);
 
     k.process(frame.data.get(), out_frame.data.get());
     libkio::write_pbm(opts.out_file.c_str(), out_frame);

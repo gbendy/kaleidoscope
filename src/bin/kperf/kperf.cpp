@@ -4,6 +4,7 @@
 #include <chrono>
 #include <iostream>
 #include <vector>
+#include <sstream>
 
 void report(const libkio::Frame& frame, std::size_t frame_count, const std::chrono::duration<float>& duration)
 {
@@ -19,8 +20,18 @@ int main(int argc, char** argv)
     libkio::Frame frame_in(1920, 1080, 1, 4);
     libkio::Frame frame_out(1920, 1080, 1, 4);
     libkaleidoscope::Kaleidoscope k(frame_in.width, frame_in.height, frame_in.comp_size, frame_in.n_comp);
+    if (argc > 1) {
+        std::stringstream ss(argv[1]);
+        std::uint32_t t;
+        ss >> t;
+        if (ss.fail() || !ss.eof()) {
+            std::cerr << "usage: " << argv[0] << " [thread_count]" << std::endl;
+            return 1;
+        }
+        k.set_threading(t);
+    }
     
-    std::vector<std::int32_t> segs = { 2, 4, 8, 12, 16, 32, 64, 128 };
+    std::vector<std::int32_t> segs = { 2, 4, 8, 12, 16, 24, 32, 64, 128 };
     std::chrono::duration<float> total(0);
     std::size_t total_frames(0);
     for (auto seg : segs) {

@@ -3,6 +3,7 @@
 #include "libkaleidoscope.h"
 #include <memory>
 #include <cstring>
+#include <future>
 
 #ifndef M_PI
 #define M_PI  3.14159265358979323846
@@ -44,7 +45,8 @@ m_edge_threshold(0),
 m_source_segment_angle(-1),
 m_n_segments(0),
 m_start_angle(0),
-m_segment_width(0)
+m_segment_width(0),
+m_n_threads(0)
 {
 }
 
@@ -304,6 +306,76 @@ void Kaleidoscope::from_screen(float& x, float& y)
 #endif
 }
 
+void Kaleidoscope::process_block(Block *block)
+{
+    std::uint32_t pixel_size = m_num_components * m_component_size;
+
+    for (std::uint32_t y = block->y_start; y <= block->y_end; ++y) {
+        for (std::uint32_t x = block->x_start; x <= block->x_end; ++x) {
+            std::uint8_t* out = block->out_frame + m_stride * y + pixel_size * x;
+
+            Reflect_info info = calculate_reflect_info(x, y);
+
+            if (info.segment_number) {
+#ifdef USE_ROTATION
+                float cos_angle = std::cos(info.reflection_angle);
+                float sin_angle = std::sin(info.reflection_angle);
+                float source_x = info.screen_x * cos_angle - info.screen_y * sin_angle;
+                float source_y = info.screen_y * cos_angle + info.screen_x * sin_angle;
+#else
+                float source_x = info.screen_x;
+                float source_y = info.screen_y;
+                if (info.segment_direction == Direction::ANTICLOCKWISE) {
+                    for (std::size_t i = info.segment_number - 1; i != 0; i--) {
+                        m_reflect_lines[i].reflect(source_x, source_y);
+                    }
+                    m_reflect_lines[0].reflect(source_x, source_y);
+                } else {
+                    for (std::size_t i = m_segmentation - info.segment_number; i < m_reflect_lines.size(); i++) {
+                        m_reflect_lines[i].reflect(source_x, source_y);
+                    }
+                }
+#endif
+                from_screen(source_x, source_y);
+                if (m_edge_reflect) {
+                    if (source_x < 0) {
+                        source_x = -source_x;
+                    } else if (source_x > m_width - 10e-4f) {
+                        source_x = m_width - (source_x - m_width + 10e-4f);
+                    } if (source_y < 0) {
+                        source_y = -source_y;
+                    } else if (source_y > m_height - 10e-4f) {
+                        source_y = m_height - (source_y - m_height + 10e-4f);
+                    }
+                    const std::uint8_t* src = block->in_frame + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
+                    std::memcpy(out, src, pixel_size);
+                } else {
+                    if (source_x < 0 && -source_x <= m_edge_threshold) {
+                        source_x = 0;
+                    } else if (source_x >= m_width && source_x < m_width + m_edge_threshold) {
+                        source_x = m_width - 1.0f;
+                    }
+                    if (source_y < 0 && -source_y <= m_edge_threshold) {
+                        source_y = 0;
+                    } else if (source_y >= m_height && source_y < m_height + m_edge_threshold) {
+                        source_y = m_height - 1.0f;
+                    }
+                    if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
+                        (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
+                        const std::uint8_t* src = block->in_frame + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
+                        std::memcpy(out, src, pixel_size);
+                    } else if (m_background_colour) {
+                        std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), pixel_size);
+                    }
+                }
+            } else {
+                const std::uint8_t* src = block->in_frame + m_stride * y + pixel_size * x;
+                std::memcpy(out, src, pixel_size);
+            }
+        }
+    }
+}
+
 std::uint8_t colours[63][3] = {
     { 0x00, 0xFF, 0x00 },
     { 0x00, 0x00, 0xFF },
@@ -390,74 +462,50 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
     if (m_n_segments == 0) {
         init();
     }
-    std::uint32_t pixel_size = m_num_components * m_component_size;
+    if (m_n_threads == 1) {
+        Block block(reinterpret_cast<const std::uint8_t*>(in_frame),
+                reinterpret_cast<std::uint8_t*>(out_frame),
+                0, 0,
+                m_width - 1, m_height-1);
+        process_block(&block);
+    } else {
+        std::uint32_t n_threads = m_n_threads == 0 ? std::thread::hardware_concurrency() : m_n_threads;
 
-    for (std::uint32_t y = 0; y < m_height; ++y) {
-        for (std::uint32_t x = 0; x < m_width; ++x) {
-            std::uint8_t* out = reinterpret_cast<std::uint8_t*>(out_frame) + m_stride * y + pixel_size * x;
+        std::vector<std::future<void>> futures;
+        std::vector<std::unique_ptr<Block>> blocks;
 
-            Reflect_info info = calculate_reflect_info(x, y);
+        std::uint32_t block_height = m_height / n_threads;
+        std::uint32_t y_start = 0;
+        std::uint32_t y_end = m_height - block_height * (n_threads - 1) - 1;
 
-            if (info.segment_number) {
-#ifdef USE_ROTATION
-                float cos_angle = std::cos(info.reflection_angle);
-                float sin_angle = std::sin(info.reflection_angle);
-                float source_x = info.screen_x * cos_angle - info.screen_y * sin_angle;
-                float source_y = info.screen_y * cos_angle + info.screen_x * sin_angle;
-#else
-                float source_x = info.screen_x;
-                float source_y = info.screen_y;
-                if (info.segment_direction == Direction::ANTICLOCKWISE) {
-                    for (std::size_t i = info.segment_number - 1; i != 0; i--) {
-                        m_reflect_lines[i].reflect(source_x, source_y);
-                    }
-                    m_reflect_lines[0].reflect(source_x, source_y);
-                } else {
-                    for (std::size_t i = m_segmentation - info.segment_number; i < m_reflect_lines.size(); i++) {
-                        m_reflect_lines[i].reflect(source_x, source_y);
-                    }
-                }
-#endif
-                from_screen(source_x, source_y);
-                if (m_edge_reflect) {
-                    if (source_x < 0) {
-                        source_x = -source_x;
-                    } else if (source_x > m_width - 10e-4f) {
-                        source_x = m_width - (source_x - m_width + 10e-4f);
-                    } if (source_y < 0) {
-                        source_y = -source_y;
-                    }
-                    else if (source_y > m_height - 10e-4f) {
-                        source_y = m_height - (source_y - m_height + 10e-4f);
-                    }
-                    const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
-                    std::memcpy(out, src, pixel_size);
-                } else {
-                    if (source_x < 0 && -source_x <= m_edge_threshold) {
-                        source_x = 0;
-                    } else if (source_x >= m_width && source_x < m_width + m_edge_threshold) {
-                        source_x = m_width - 1.0f;
-                    }
-                    if (source_y < 0 && -source_y <= m_edge_threshold) {
-                        source_y = 0;
-                    } else if (source_y >= m_height && source_y < m_height + m_edge_threshold) {
-                        source_y = m_height - 1.0f;
-                    }
-                    if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
-                        (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
-                        const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
-                        std::memcpy(out, src, pixel_size);
-                    } else if (m_background_colour) {
-                        std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), pixel_size);
-                    }
-                }
-            } else {
-                const std::uint8_t* src = reinterpret_cast<const std::uint8_t*>(in_frame) + m_stride * y + pixel_size * x;
-                std::memcpy(out, src, pixel_size);
-            }
+        for (std::uint32_t i = 0; i < n_threads; ++i) {
+            blocks.emplace_back(new Block(
+                reinterpret_cast<const std::uint8_t*>(in_frame),
+                reinterpret_cast<std::uint8_t*>(out_frame),
+                0, y_start,
+                m_width - 1, y_end));
+
+            futures.push_back(std::async(std::launch::async, &Kaleidoscope::process_block, this, blocks[i].get()));
+            y_start = y_end + 1;
+            y_end += block_height;
+        }
+        for (auto& f : futures) {
+            f.wait();
         }
     }
+    
     return 0;
+}
+
+std::int32_t Kaleidoscope::set_threading(std::uint32_t threading)
+{
+    m_n_threads = threading;
+    return 0;
+}
+
+std::uint32_t Kaleidoscope::get_threading() const
+{
+    return m_n_threads;
 }
 
 std::int32_t Kaleidoscope::visualise(void* out_frame)
