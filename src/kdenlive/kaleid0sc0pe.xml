@@ -38,4 +38,10 @@
 	<parameter type="animated" name="alpha" default="1.0" min="0" max="255" factor="255">
 		<name>Background Alpha</name>
 	</parameter>
+		<parameter type="bool" name="multithreaded" default="1">
+		<name>Multithreaded</name>
+	</parameter>
+		<parameter name="threads" default="0" min="0" max="32" factor="32">
+		<name>Thread count</name>
+	</parameter>
 </effect>
