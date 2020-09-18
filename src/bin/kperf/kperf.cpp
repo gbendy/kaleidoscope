@@ -44,7 +44,7 @@ int main(int argc, char** argv)
     std::chrono::duration<float> total(0);
     std::size_t total_frames(0);
 #ifdef HEURISTICS
-    std::cout << "threads: " << std::thread::hardware_concurrency();
+    std::cout << "threads:" << std::thread::hardware_concurrency();
     for (auto seg : segs) {
         std::cout << "," << seg;
     }
