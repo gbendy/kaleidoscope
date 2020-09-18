@@ -26,15 +26,11 @@ m_height(height),
 m_component_size(component_size),
 m_num_components(num_components),
 m_stride(stride ? stride : width * component_size * num_components),
-#ifdef USE_NATIVE_SPACE
 m_aspect(width/static_cast<float>(height)),
-#endif
 m_origin_x(0.5f),
 m_origin_y(0.5f),
-#ifdef USE_NATIVE_SPACE
 m_origin_native_x(m_origin_x * width),
 m_origin_native_y(m_origin_y * height),
-#endif
 m_segmentation(16),
 m_segment_direction(Direction::NONE),
 m_preferred_corner(Corner::BR),
@@ -57,10 +53,10 @@ std::int32_t Kaleidoscope::set_origin(float x, float y)
     }
     m_origin_x = x;
     m_origin_y = y;
-#ifdef USE_NATIVE_SPACE
+
     m_origin_native_x = m_origin_x * m_width;
     m_origin_native_y = m_origin_y * m_height;
-#endif
+
     m_n_segments = 0;
 
     return 0;
@@ -183,21 +179,12 @@ void Kaleidoscope::init()
 #endif
     if (m_source_segment_angle < 0) {
         // find origin rotation
-#ifdef USE_NATIVE_SPACE
         std::uint32_t corners[4][2] = {
             { 0, 0 },
             { 1, 0 },
             { 1, 1 },
             { 0, 1 }
         };
-#else
-        std::uint32_t corners[4][2] = {
-            { 0, 1 },
-            { 1, 1 },
-            { 1, 0 },
-            { 0, 0 }
-        }; 
-#endif
         std::int32_t start_idx(0);
         switch (m_preferred_corner) {
         case Corner::TL: start_idx = 0; break;
@@ -207,13 +194,8 @@ void Kaleidoscope::init()
         }
         std::int32_t dir = m_preferred_search_dir == Direction::CLOCKWISE ? 1 : -1;
         std::uint32_t idx = start_idx;
-#ifdef USE_NATIVE_SPACE
         float origin_x = m_origin_x;
         float origin_y = m_origin_y;
-#else
-        float origin_x = m_origin_x;
-        float origin_y = 1 - m_origin_y;
-#endif
         double dist = distance_sq(origin_x, origin_y, corners[idx][0], corners[idx][1]);
         std::int32_t corner = idx;
         idx = inc_idx(idx, dir, 4);
@@ -228,21 +210,11 @@ void Kaleidoscope::init()
 
         float start_line_x = corners[corner][0] - origin_x;
         float start_line_y = corners[corner][1] - origin_y;
-#ifdef USE_NATIVE_SPACE
         m_start_angle = std::atan2(start_line_y, start_line_x) - (m_segment_direction == Direction::NONE ?
                                                                     0 :
                                                                     (m_segment_width / (m_segment_direction == Direction::CLOCKWISE ? -2 : 2)));
-#else
-        m_start_angle = std::atan2(start_line_y, start_line_x) - (m_segment_direction == Direction::NONE ?
-                                                                    0 :
-                                                                    (m_segment_width / (m_segment_direction == Direction::CLOCKWISE ? 2 : -2)));
-#endif
     } else {
-#ifdef USE_NATIVE_SPACE
         m_start_angle = -m_source_segment_angle;
-#else
-        m_start_angle = m_source_segment_angle;
-#endif
     }
 #ifndef USE_ROTATION
     float start_angle = m_start_angle + m_segment_width / 2;
@@ -286,24 +258,14 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x,
 
 void Kaleidoscope::to_screen(float& x, float& y, std::uint32_t sx, std::uint32_t sy)
 {
-#ifdef USE_NATIVE_SPACE
     x = sx - m_origin_native_x;
     y = (sy - m_origin_native_y) * m_aspect;
-#else
-    x = sx / static_cast<float>(m_width) - m_origin_x;
-    y = -(sy / static_cast<float>(m_height) - m_origin_y); // negated so +y is up
-#endif
 }
 
 void Kaleidoscope::from_screen(float& x, float& y)
 {
-#ifdef USE_NATIVE_SPACE
     x += m_origin_native_x;
     y = y / m_aspect + m_origin_native_y;
-#else
-    x = (x + m_origin_x) * m_width;
-    y = (-y + m_origin_y) * m_height;
-#endif
 }
 
 void Kaleidoscope::process_block(Block *block)

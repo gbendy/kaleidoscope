@@ -9,8 +9,6 @@
 #define USE_ROTATION 1
 #endif
 
-#define USE_NATIVE_SPACE 1
-
 namespace libkaleidoscope {
 
 /**
@@ -361,16 +359,12 @@ private:
     std::uint32_t m_num_components;
     std::uint32_t m_stride;
 
-#ifdef USE_NATIVE_SPACE
     float m_aspect;
-#endif
+
     float m_origin_x;
     float m_origin_y;
-
-#ifdef USE_NATIVE_SPACE
     float m_origin_native_x;
     float m_origin_native_y;
-#endif
 
 
     std::uint32_t m_segmentation;
