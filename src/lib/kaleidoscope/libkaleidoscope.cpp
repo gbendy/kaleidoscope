@@ -238,13 +238,6 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x,
     to_screen(info.screen_x, info.screen_y, x, y);
 
     info.angle = std::atan2(info.screen_y, info.screen_x) - m_start_angle;
-    while (info.angle < -MF_PI) {
-        info.angle += MF_2PI;
-    }
-    while (info.angle > MF_PI) {
-        info.angle -= MF_2PI;
-    }
-
     info.reference_angle = std::fabs(info.angle) + m_segment_width / 2;
     info.segment_number = std::uint32_t(info.reference_angle / m_segment_width);
 
