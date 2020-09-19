@@ -18,7 +18,7 @@ void report(const libkio::Frame& frame, std::size_t frame_count, const std::chro
 
 void print_usage(const char* arg0)
 {
-    std::cerr << "usage: " << arg0 << " [-h] [-H] [-f frames] [-t threads]" << std::endl;
+    std::cerr << "usage: " << arg0 << " [-h] [-H] [-f frames] [-t threads] [-r]" << std::endl;
 }
 
 void print_help(const char* arg0)
@@ -28,6 +28,7 @@ void print_help(const char* arg0)
     std::cerr << "    -H                enable heuristics mode" << std::endl;
     std::cerr << "    -f frames         number of frames to render            (default 100)" << std::endl;
     std::cerr << "    -t threads        number of threads in normal mode      (default 1)" << std::endl;
+    std::cerr << "    -r                calculate using actual reflections" << std::endl;
     std::cerr << "    -h                help" << std::endl;
 }
 
@@ -41,6 +42,7 @@ int main(int argc, char** argv)
     std::uint32_t n_threads(1);
     bool heuristics(false);
     std::uint32_t frame_count(100);
+    bool use_reflections(false);
     try {
         for (int i = 1; i < argc; ++i) {
             std::string arg(argv[i]);
@@ -70,6 +72,8 @@ int main(int argc, char** argv)
                     print_usage(argv[0]);
                     return 1;
                 }
+            } else if (arg == "-r") {
+                use_reflections = true;
             } else if (arg == "-h") {
                 print_help(argv[0]);
                 return 1;
@@ -91,7 +95,7 @@ int main(int argc, char** argv)
         segs = { 2, 4, 8, 12, 16, 24, 32, 64, 128 };
         threads = { n_threads };
     }
-
+    k->use_reflection(use_reflections);
     std::chrono::duration<float> total(0);
     std::size_t total_frames(0);
     if (heuristics) {

@@ -5,10 +5,7 @@
 
 #include <vector>
 #include <cmath>
-
-#ifndef USE_REFLECTION
-#define USE_ROTATION 1
-#endif
+#include <functional>
 
 namespace libkaleidoscope {
 
@@ -228,6 +225,10 @@ public:
      */
     virtual std::uint32_t get_threading() const;
 
+    virtual std::int32_t use_reflection(bool use_reflection);
+
+    virtual bool using_reflection() const;
+
     /**
      * Visualises the currently configured segmentation. The pure green segment is the 
      * source segment.
@@ -249,13 +250,11 @@ private:
         float screen_y;                 ///< y coordinate in screen space (range -0.5->0.5, top negative)
         float angle;                    ///< angle from this point to the start of the source segment
         std::uint32_t segment_number;   ///< segment number the point resides in
-#ifdef USE_ROTATION
-        float reflection_angle;         ///< angle from this point to the point it reflects
-#endif
+//        float reflection_angle;         ///< angle from this point to the point it reflects
+        float reference_angle;          ///<
         Direction segment_direction;    ///< direction that the segment is in from the source
     };
 
-#ifndef USE_ROTATION
     // Defines a line through the origin in general line equation format
     struct Reflector {
         float a;
@@ -291,7 +290,7 @@ private:
             y = y1;
         }
     };
-#endif
+
     /// Calculates the reflection information for a given point.
     /// NB: init() must have already been called.
     /// @param x the x coordinate
@@ -320,24 +319,31 @@ private:
         std::uint32_t x_end;
         std::uint32_t y_end;
 
+        std::function<void(const Reflect_info&, float&, float&)> reflector;
+
         /// \param in_frame the input frame
         /// \param out_frame the output frame
         /// \param x_start start x coordinate of block to process
         /// \param y_start start y coordinate of block to process
         /// \param x_end end x coordinate of block to process (inclusive)
         /// \param y_end end y coordinate of block to process (inclusive)
-        Block(const std::uint8_t* _in_frame, std::uint8_t* _out_frame, std::uint32_t _x_start, std::uint32_t _y_start, std::uint32_t _x_end, std::uint32_t _y_end):
+        Block(const std::uint8_t* _in_frame, std::uint8_t* _out_frame, std::uint32_t _x_start, std::uint32_t _y_start, std::uint32_t _x_end, std::uint32_t _y_end, std::function<void(const Reflect_info&, float&, float&)> _reflector):
             in_frame(_in_frame),
             out_frame(_out_frame),
             x_start(_x_start),
             y_start(_y_start),
             x_end(_x_end),
-            y_end(_y_end)
+            y_end(_y_end),
+            reflector(_reflector)
         {}
     };
     
     /// Process a block
     void process_block(Block *block);
+
+    void reflect_point(const Reflect_info& info, float& x, float& y);
+
+    void reflect_point_by_rotation(const Reflect_info& info, float& x, float& y);
         
     std::uint32_t m_width;
     std::uint32_t m_height;
@@ -372,9 +378,9 @@ private:
 
     std::uint32_t m_n_threads;
 
-#ifndef USE_ROTATION
+    bool m_use_reflection;
+
     std::vector<Reflector> m_reflect_lines;
-#endif
 };
 
 }

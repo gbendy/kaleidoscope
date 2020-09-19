@@ -57,7 +57,8 @@ m_source_segment_angle(-1),
 m_n_segments(0),
 m_start_angle(0),
 m_segment_width(0),
-m_n_threads(0)
+m_n_threads(0),
+m_use_reflection(false)
 {
 }
 
@@ -189,9 +190,8 @@ void Kaleidoscope::init()
 {
     m_n_segments = m_segmentation * 2;
     m_segment_width = MF_PI * 2 / m_n_segments;
-#ifndef USE_ROTATION
     m_reflect_lines.clear();
-#endif
+
     if (m_source_segment_angle < 0) {
         // find origin rotation
         std::uint32_t corners[4][2] = {
@@ -231,12 +231,12 @@ void Kaleidoscope::init()
     } else {
         m_start_angle = -m_source_segment_angle;
     }
-#ifndef USE_ROTATION
-    float start_angle = m_start_angle + m_segment_width / 2;
-    for (std::uint32_t i = 0; i < m_segmentation; ++i) {
-        m_reflect_lines.push_back(Reflector(start_angle + m_segment_width * i));
+    if (m_use_reflection) {
+        float start_angle = m_start_angle + m_segment_width / 2;
+        for (std::uint32_t i = 0; i < m_segmentation; ++i) {
+            m_reflect_lines.push_back(Reflector(start_angle + m_segment_width * i));
+        }
     }
-#endif
 }
 
 Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x, std::uint32_t y)
@@ -253,21 +253,10 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x,
         info.angle -= MF_2PI;
     }
 
-    float ref_angle = std::fabs(info.angle) + m_segment_width / 2;
-    info.segment_number = std::uint32_t(ref_angle / m_segment_width);
+    info.reference_angle = std::fabs(info.angle) + m_segment_width / 2;
+    info.segment_number = std::uint32_t(info.reference_angle / m_segment_width);
     info.segment_direction = std::signbit(info.angle) ? Direction::CLOCKWISE : Direction::ANTICLOCKWISE;
-#ifdef USE_ROTATION
-    if (info.segment_number) {
-        info.reflection_angle = (info.segment_number * m_segment_width);
-        if (info.segment_number % 2) {
-            // reflect
-            info.reflection_angle -= (m_segment_width - 2 * (ref_angle - info.reflection_angle));
-        }
-        info.reflection_angle *= info.segment_direction == Direction::CLOCKWISE ? 1 : -1;
-    } else {
-        info.reflection_angle = 0;
-    }
-#endif
+
     return info;
 }
 
@@ -294,25 +283,11 @@ void Kaleidoscope::process_block(Block *block)
             Reflect_info info = calculate_reflect_info(x, y);
 
             if (info.segment_number) {
-#ifdef USE_ROTATION
-                float cos_angle = std::cos(info.reflection_angle);
-                float sin_angle = std::sin(info.reflection_angle);
-                float source_x = info.screen_x * cos_angle - info.screen_y * sin_angle;
-                float source_y = info.screen_y * cos_angle + info.screen_x * sin_angle;
-#else
-                float source_x = info.screen_x;
-                float source_y = info.screen_y;
-                if (info.segment_direction == Direction::ANTICLOCKWISE) {
-                    for (std::size_t i = info.segment_number - 1; i != 0; i--) {
-                        m_reflect_lines[i].reflect(source_x, source_y);
-                    }
-                    m_reflect_lines[0].reflect(source_x, source_y);
-                } else {
-                    for (std::size_t i = m_segmentation - info.segment_number; i < m_reflect_lines.size(); i++) {
-                        m_reflect_lines[i].reflect(source_x, source_y);
-                    }
-                }
-#endif
+                float source_x;
+                float source_y;
+                
+                block->reflector(info, source_x, source_y);
+                
                 from_screen(source_x, source_y);
                 if (m_edge_reflect) {
                     if (source_x < 0) {
@@ -351,6 +326,36 @@ void Kaleidoscope::process_block(Block *block)
             }
         }
     }
+}
+
+void Kaleidoscope::reflect_point(const Reflect_info& info, float& x, float& y)
+{
+    x = info.screen_x;
+    y = info.screen_y;
+    if (info.segment_direction == Direction::ANTICLOCKWISE) {
+        for (std::size_t i = info.segment_number - 1; i != 0; i--) {
+            m_reflect_lines[i].reflect(x, y);
+        }
+        m_reflect_lines[0].reflect(x, y);
+    } else {
+        for (std::size_t i = m_segmentation - info.segment_number; i < m_reflect_lines.size(); i++) {
+            m_reflect_lines[i].reflect(x, y);
+        }
+    }
+}
+
+void Kaleidoscope::reflect_point_by_rotation(const Reflect_info& info, float& x, float& y)
+{
+    float reflection_angle = (info.segment_number * m_segment_width);
+    if (info.segment_number % 2) {
+        // reflect
+        reflection_angle -= (m_segment_width - 2 * (info.reference_angle - reflection_angle));
+    }
+    reflection_angle *= info.segment_direction == Direction::CLOCKWISE ? 1 : -1;
+    float cos_angle = std::cos(reflection_angle);
+    float sin_angle = std::sin(reflection_angle);
+    x = info.screen_x * cos_angle - info.screen_y * sin_angle;
+    y = info.screen_y * cos_angle + info.screen_x * sin_angle;
 }
 
 std::uint8_t colours[63][3] = {
@@ -439,11 +444,14 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
     if (m_n_segments == 0) {
         init();
     }
+    auto reflector(std::bind(m_use_reflection ? &Kaleidoscope::reflect_point : &Kaleidoscope::reflect_point_by_rotation, this,
+                                std::placeholders::_1, std::placeholders::_2, std::placeholders::_3));
     if (m_n_threads == 1) {
         Block block(reinterpret_cast<const std::uint8_t*>(in_frame),
-                reinterpret_cast<std::uint8_t*>(out_frame),
-                0, 0,
-                m_width - 1, m_height-1);
+            reinterpret_cast<std::uint8_t*>(out_frame),
+            0, 0,
+            m_width - 1, m_height - 1,
+            reflector);
         process_block(&block);
     } else {
         std::uint32_t n_threads = m_n_threads == 0 ? std::thread::hardware_concurrency() : m_n_threads;
@@ -460,7 +468,8 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
                 reinterpret_cast<const std::uint8_t*>(in_frame),
                 reinterpret_cast<std::uint8_t*>(out_frame),
                 0, y_start,
-                m_width - 1, y_end));
+                m_width - 1, y_end,
+                reflector));
 
             futures.push_back(std::async(std::launch::async, &Kaleidoscope::process_block, this, blocks[i].get()));
             y_start = y_end + 1;
@@ -483,6 +492,18 @@ std::int32_t Kaleidoscope::set_threading(std::uint32_t threading)
 std::uint32_t Kaleidoscope::get_threading() const
 {
     return m_n_threads;
+}
+
+std::int32_t Kaleidoscope::use_reflection(bool use_reflection)
+{
+    m_use_reflection = use_reflection;
+    m_n_segments = 0;
+    return 0;
+}
+
+bool Kaleidoscope::using_reflection() const
+{
+    return m_use_reflection;
 }
 
 std::int32_t Kaleidoscope::visualise(void* out_frame)
