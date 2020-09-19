@@ -1,4 +1,4 @@
-add_library(kaleidoscope libkaleidoscope.cpp libkaleidoscope.h)
+add_library(kaleidoscope libkaleidoscope.cpp libkaleidoscope.h ikaleidoscope.h)
 
 target_include_directories(kaleidoscope
     INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}
@@ -18,4 +18,4 @@ if (USE_REFLECTION)
 endif()
 
 install(TARGETS kaleidoscope DESTINATION lib)
-install(FILES libkaleidoscope.h DESTINATION include)
+install(FILES ikaleidoscope.h DESTINATION include)

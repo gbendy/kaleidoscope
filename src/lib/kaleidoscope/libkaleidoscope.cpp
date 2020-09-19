@@ -18,7 +18,22 @@
 #define MF_2PI 6.28318530717958647693f
 #endif
 
+namespace std
+{
+
+void default_delete<libkaleidoscope::IKaleidoscope>::operator()(libkaleidoscope::IKaleidoscope *p)
+{
+    delete p;
+}
+
+}
+
 namespace libkaleidoscope {
+
+IKaleidoscope *IKaleidoscope::create(std::uint32_t width, std::uint32_t height, std::uint32_t component_size, std::uint32_t num_components, std::uint32_t stride)
+{
+    return new Kaleidoscope(width, height, component_size, num_components, stride);
+}
 
 Kaleidoscope::Kaleidoscope(std::uint32_t width, std::uint32_t height, std::uint32_t component_size, std::uint32_t num_components, std::uint32_t stride):
 m_width(width),

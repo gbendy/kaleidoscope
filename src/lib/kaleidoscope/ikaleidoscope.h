@@ -1,32 +1,32 @@
-#ifndef LIBKALEIDOSCOPE_LIBKALEIDOSCOPE_H
-#define LIBKALEIDOSCOPE_LIBKALEIDOSCOPE_H 1
+#ifndef LIBKALEIDOSCOPE_IKALEIDOSCOPE_H
+#define LIBKALEIDOSCOPE_IKALEIDOSCOPE_H 1
 
-#include "ikaleidoscope.h"
+#include <cstdint>
+#include <memory>
+namespace libkaleidoscope {
+class IKaleidoscope;
+}
+namespace std
+{
 
-#include <vector>
-#include <cmath>
-
-#ifndef USE_REFLECTION
-#define USE_ROTATION 1
-#endif
+// default delete for IKaleidoscope
+// this isn't going to work across an actaul shared object boundary but
+// not particular worried about that at the moment
+template<>
+class default_delete<libkaleidoscope::IKaleidoscope>
+{
+public:
+    void operator()(libkaleidoscope::IKaleidoscope* p);
+};
+}
 
 namespace libkaleidoscope {
 
 /**
  * Class which implements the kaleidoscope effect
  */
-class Kaleidoscope: public IKaleidoscope {
+class IKaleidoscope {
 public:
-    /**
-     * Constructor
-     * @param width the frame width
-     * @param height the frame height
-     * @param component_size the byte size of each frame pixel component
-     * @param num_components the number of components per pixel
-     * @param stride the image stride, if \c 0 then calculated as \p width * \p component_size * \p num_components
-     */
-    Kaleidoscope(std::uint32_t width, std::uint32_t height, std::uint32_t component_size, std::uint32_t num_components, std::uint32_t stride = 0);
-
     /**
      * Sets the origin of the kaleidoscope effect. These are given in the range 0 -> 1.
      * Values other than 0.5,0.5 may end up reflecting outside the source image.
@@ -40,17 +40,17 @@ public:
      *          - -1: Error
      *          - -2: Parameter out of range
      */
-    virtual std::int32_t set_origin(float x, float y);
+    virtual std::int32_t set_origin(float x, float y) = 0;
 
     /**
      * Returns the origin x coordinate.
      */
-    virtual float get_origin_x() const;
+    virtual float get_origin_x() const = 0;
 
     /**
      * Returns the origin y coordinate.
      */
-    virtual float get_origin_y() const;
+    virtual float get_origin_y() const = 0;
     
     /**
      * Sets the segmentation resulting in \p segmentation * 2 segments in the output frame.
@@ -65,12 +65,12 @@ public:
      *          - -1: Error
      *          - -2: Parameter out of range
      */
-    virtual std::int32_t set_segmentation(std::uint32_t segmentation);
+    virtual std::int32_t set_segmentation(std::uint32_t segmentation) = 0;
 
     /**
-     * Returns the segmentation value
-     */
-    virtual std::uint32_t get_segmentation() const;
+        * Returns the segmentation value
+        */
+    virtual std::uint32_t get_segmentation() const = 0;
     
     /**
      * When #set_reflect_edges is not true and a reflected pixel ends up outside the image
@@ -82,12 +82,27 @@ public:
      *          -  0: Success
      *          - -1: Error
      */
-    virtual std::int32_t set_edge_threshold(std::uint32_t threshold);
+    virtual std::int32_t set_edge_threshold(std::uint32_t threshold) = 0;
 
     /**
      * Returns the edge threshold
      */
-    virtual std::uint32_t get_edge_threshold() const;
+    virtual std::uint32_t get_edge_threshold() const = 0;
+
+    ///  Defines a corner
+    enum class Corner {
+        TL = 0,     //< Top Left
+        TR,         //< Top Right
+        BR,         //< Bottom Right
+        BL          //< Bottom Left
+    };
+
+    ///  Defines an angular direction
+    enum class Direction {
+        CLOCKWISE = 0,  //< Clockwise
+        ANTICLOCKWISE,  //< Anti Clockwise
+        NONE            //< No direction
+    };
 
     /**
      * Sets the direction that the source segment rotates in. If
@@ -99,12 +114,12 @@ public:
      *          -  0: Success
      *          - -1: Error
      */
-    virtual std::int32_t set_segment_direction(Direction direction);
+    virtual std::int32_t set_segment_direction(Direction direction) = 0;
 
     /**
-     * Returns the segment direction
-     */
-    virtual Direction get_segment_direction() const;
+        * Returns the segment direction
+        */
+    virtual Direction get_segment_direction() const = 0;
 
     /**
      * Unless directly specified with #set_source_segment the source segment is always aligned to
@@ -120,12 +135,12 @@ public:
      *          -  0: Success
      *          - -1: Error
      */
-    virtual std::int32_t set_preferred_corner(Corner corner);
+    virtual std::int32_t set_preferred_corner(Corner corner) = 0;
 
     /**
      * Returns the preferred corner
      */
-    virtual Corner get_preferred_corner() const;
+    virtual Corner get_preferred_corner() const = 0;
 
     /**
      * The direction to search for the furthest corner in.
@@ -136,12 +151,12 @@ public:
      *          - -1: Error
      *          - -2: Invalid parameter (\p direction cannot by Direction::NONE)
      */
-    virtual std::int32_t set_preferred_corner_search_direction(Direction direction);
+    virtual std::int32_t set_preferred_corner_search_direction(Direction direction) = 0;
 
     /**
      * Returns the corner search direction
      */
-    virtual Direction get_preferred_corner_search_direction() const;
+    virtual Direction get_preferred_corner_search_direction() const = 0;
 
     /**
      * Reflected points can end up outside the source image depending on segmentation,
@@ -156,12 +171,12 @@ public:
      *          -  0: Success
      *          - -1: Error
      */
-    virtual std::int32_t set_reflect_edges(bool reflect);
+    virtual std::int32_t set_reflect_edges(bool reflect) = 0;
 
     /**
      * Returns the reflect edges setting
      */
-    virtual bool get_reflect_edges() const;
+    virtual bool get_reflect_edges() const = 0;
 
     /**
      * If not reflecting edges then this sets the colour to use when the kaleidoscope effect 
@@ -175,12 +190,12 @@ public:
      *          -  0: Success
      *          - -1: Error
      */
-    virtual std::int32_t set_background_colour(void* colour);
+    virtual std::int32_t set_background_colour(void* colour) = 0;
 
     /**
      * Returns the background colour
      */
-    virtual void *get_background_colour() const;
+    virtual void* get_background_colour() const = 0;
 
     /**
      * Allows to explicitly specify the location of the source segment. 0 radians is in the positive
@@ -192,17 +207,17 @@ public:
      *          -  0: Success
      *          - -1: Error
      */
-    virtual std::int32_t set_source_segment(float angle);
+    virtual std::int32_t set_source_segment(float angle) = 0;
 
     /**
      * Returns the source segment
      */
-    virtual float get_source_segment() const;
+    virtual float get_source_segment() const = 0;
 
     /**
      * Applies the kaleidoscope effect to \p in_frame and returns it in \p out_frame.
      * Each parameter must point to enough memory to contain the image specified in the 
-     * constructor.
+     * constructor and must be aligned to an integer multiple of 16 bytes in memory.
      * @param in_frame the input frame to process
      * @param out_frame receives the output image
      * @return
@@ -210,7 +225,7 @@ public:
      *          - -1: Error
      *          - -2: Invalid parameter (nullptr)
      */
-    virtual std::int32_t process(const void* in_frame, void* out_frame);
+    virtual std::int32_t process(const void* in_frame, void* out_frame) = 0;
 
     /**
      * Sets the number of threads to use when processing.
@@ -221,12 +236,12 @@ public:
      *          -  0: Success
      *          - -1: Error
      */
-    virtual std::int32_t set_threading(std::uint32_t threading);
+    virtual std::int32_t set_threading(std::uint32_t threading) = 0;
 
     /**
      * Returns the number of threads to use.
      */
-    virtual std::uint32_t get_threading() const;
+    virtual std::uint32_t get_threading() const = 0;
 
     /**
      * Visualises the currently configured segmentation. The pure green segment is the 
@@ -237,144 +252,28 @@ public:
      *          - -1: Error
      *          - -2: Invalid parameter (nullptr)
      */
-    virtual std::int32_t visualise(void* out_frame);
+    virtual std::int32_t visualise(void* out_frame) = 0;
+
+    /**
+     * Virtual destructor
+     */
+    virtual ~IKaleidoscope() {};
+
+    /**
+     * Static factory function.
+     * @param width the frame width
+     * @param height the frame height
+     * @param component_size the byte size of each frame pixel component
+     * @param num_components the number of components per pixel
+     * @param stride the image stride, if \c 0 then calculated as \p width * \p component_size * \p num_components
+     */
+    static std::unique_ptr<IKaleidoscope> factory(std::uint32_t width, std::uint32_t height, std::uint32_t component_size, std::uint32_t num_components, std::uint32_t stride = 0) {
+        return std::unique_ptr<IKaleidoscope>(create(width, height, component_size, num_components, stride));
+    }
 
 private:
-    void init();
+    static IKaleidoscope* create(std::uint32_t width, std::uint32_t height, std::uint32_t component_size, std::uint32_t num_components, std::uint32_t stride = 0);
 
-
-    /// Defines reflection information for a given point in the frame
-    struct Reflect_info {
-        float screen_x;                 ///< x coordinate in screen space (range -0.5->0.5, left negative)
-        float screen_y;                 ///< y coordinate in screen space (range -0.5->0.5, top negative)
-        float angle;                    ///< angle from this point to the start of the source segment
-        std::uint32_t segment_number;   ///< segment number the point resides in
-#ifdef USE_ROTATION
-        float reflection_angle;         ///< angle from this point to the point it reflects
-#endif
-        Direction segment_direction;    ///< direction that the segment is in from the source
-    };
-
-#ifndef USE_ROTATION
-    // Defines a line through the origin in general line equation format
-    struct Reflector {
-        float a;
-        float b;
-        float b2ma2;    // bb-aa
-        float tab;      // 2ab
-        float a2pb2;    // aa+bb
-        float a2mb2;    // aa-bb
-
-        Reflector(float angle) :
-            a(-std::sin(angle)),
-            b(std::cos(angle))
-        {
-            derive();
-        }
-
-        void derive()
-        {
-            float aa = a * a;
-            float bb = b * b;
-
-            b2ma2 = bb - aa;
-            tab = 2 * a * b;
-            a2pb2 = aa + bb;
-            a2mb2 = aa - bb;
-        }
-
-        void reflect(float& x, float& y)
-        {
-            float x1 = (b2ma2 * x - tab * y) / a2pb2;
-            float y1 = (a2mb2 * y - tab * x) / a2pb2;
-            x = x1;
-            y = y1;
-        }
-    };
-#endif
-    /// Calculates the reflection information for a given point.
-    /// NB: init() must have already been called.
-    /// @param x the x coordinate
-    /// @param x the y coordinate
-    /// @return the reflection information for the point
-    Reflect_info calculate_reflect_info(std::uint32_t x, std::uint32_t y);
-
-    /// Converts coordinates to screen space
-    /// @param x x coordinate
-    /// @param y y coordinate
-    /// @param sx source x coordinate
-    /// @param sy source y coordinate
-    void to_screen(float& x, float& y, std::uint32_t sx, std::uint32_t sy);
-
-    /// Converts coordinates from screen space in place
-    /// @param x x coordinate
-    /// @param y y coordinate
-    void from_screen(float& x, float& y);
-    
-    /// A block of data to process
-    struct Block {
-        const std::uint8_t* in_frame;
-        std::uint8_t* out_frame;
-        std::uint32_t x_start;
-        std::uint32_t y_start;
-        std::uint32_t x_end;
-        std::uint32_t y_end;
-
-        /// \param in_frame the input frame
-        /// \param out_frame the output frame
-        /// \param x_start start x coordinate of block to process
-        /// \param y_start start y coordinate of block to process
-        /// \param x_end end x coordinate of block to process (inclusive)
-        /// \param y_end end y coordinate of block to process (inclusive)
-        Block(const std::uint8_t* _in_frame, std::uint8_t* _out_frame, std::uint32_t _x_start, std::uint32_t _y_start, std::uint32_t _x_end, std::uint32_t _y_end):
-            in_frame(_in_frame),
-            out_frame(_out_frame),
-            x_start(_x_start),
-            y_start(_y_start),
-            x_end(_x_end),
-            y_end(_y_end)
-        {}
-    };
-    
-    /// Process a block
-    void process_block(Block *block);
-        
-    std::uint32_t m_width;
-    std::uint32_t m_height;
-    std::uint32_t m_component_size;
-    std::uint32_t m_num_components;
-    std::uint32_t m_stride;
-
-    float m_aspect;
-
-    float m_origin_x;
-    float m_origin_y;
-    float m_origin_native_x;
-    float m_origin_native_y;
-
-
-    std::uint32_t m_segmentation;
-    Direction m_segment_direction;
-
-    Corner m_preferred_corner;
-    Direction m_preferred_search_dir;
-
-    bool m_edge_reflect;
-
-    void* m_background_colour;
-    std::uint32_t m_edge_threshold;
-
-    float m_source_segment_angle;
-
-    std::uint32_t m_n_segments;
-    float m_start_angle;
-    float m_segment_width;
-
-    std::uint32_t m_n_threads;
-
-#ifndef USE_ROTATION
-    std::vector<Reflector> m_reflect_lines;
-#endif
 };
 
 }

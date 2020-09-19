@@ -1,4 +1,4 @@
-#include "libkaleidoscope.h"
+#include "ikaleidoscope.h"
 #include "libkio.h"
 #include <iostream>
 #include <iomanip>
@@ -9,13 +9,13 @@ struct Options {
     std::string out_file;
 
     std::int32_t segmentation;
-    libkaleidoscope::Kaleidoscope::Direction direction;
+    libkaleidoscope::IKaleidoscope::Direction direction;
 
     float origin_x;
     float origin_y;
 
-    libkaleidoscope::Kaleidoscope::Corner corner;
-    libkaleidoscope::Kaleidoscope::Direction corner_direction;
+    libkaleidoscope::IKaleidoscope::Corner corner;
+    libkaleidoscope::IKaleidoscope::Direction corner_direction;
 
     std::uint8_t bg_colour[3];
 
@@ -29,11 +29,11 @@ struct Options {
 
     Options():
         segmentation(16),
-        direction(libkaleidoscope::Kaleidoscope::Direction::NONE),
+        direction(libkaleidoscope::IKaleidoscope::Direction::NONE),
         origin_x(0.5f),
         origin_y(0.5f),
-        corner(libkaleidoscope::Kaleidoscope::Corner::BL),
-        corner_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE),
+        corner(libkaleidoscope::IKaleidoscope::Corner::BL),
+        corner_direction(libkaleidoscope::IKaleidoscope::Direction::CLOCKWISE),
         bg_set(false),
         edge_threshold(0),
         start_angle(-1),
@@ -50,18 +50,18 @@ void print_usage(const char* arg0)
     std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d c|cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb] [-e threshold] [-a angle] [-t threads] infile outfile" << std::endl;
 }
 
-std::string to_string(libkaleidoscope::Kaleidoscope::Direction d)
+std::string to_string(libkaleidoscope::IKaleidoscope::Direction d)
 {
-    if (d == libkaleidoscope::Kaleidoscope::Direction::NONE) return "c";
-    if (d == libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE) return "cw";
+    if (d == libkaleidoscope::IKaleidoscope::Direction::NONE) return "c";
+    if (d == libkaleidoscope::IKaleidoscope::Direction::CLOCKWISE) return "cw";
     return "ccw";
 }
 
-std::string to_string(libkaleidoscope::Kaleidoscope::Corner c)
+std::string to_string(libkaleidoscope::IKaleidoscope::Corner c)
 {
-    if (c == libkaleidoscope::Kaleidoscope::Corner::TL) return "tl";
-    if (c == libkaleidoscope::Kaleidoscope::Corner::TR) return "tr";
-    if (c == libkaleidoscope::Kaleidoscope::Corner::BL) return "bl";
+    if (c == libkaleidoscope::IKaleidoscope::Corner::TL) return "tl";
+    if (c == libkaleidoscope::IKaleidoscope::Corner::TR) return "tr";
+    if (c == libkaleidoscope::IKaleidoscope::Corner::BL) return "bl";
     return "br";
 }
 
@@ -118,11 +118,11 @@ Options parse_options(int argc, char** argv)
                 if (value != "c" && value != "cw" && value != "ccw") {
                     throw "-d argument " + std::string(argv[i]) + " is not c cw or ccw.";
                 } else if (value == "c") {
-                    options.direction = libkaleidoscope::Kaleidoscope::Direction::NONE;
+                    options.direction = libkaleidoscope::IKaleidoscope::Direction::NONE;
                 } else if (value == "cw") {
-                    options.direction = libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE;
+                    options.direction = libkaleidoscope::IKaleidoscope::Direction::CLOCKWISE;
                 } else {
-                    options.direction = libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE;
+                    options.direction = libkaleidoscope::IKaleidoscope::Direction::ANTICLOCKWISE;
                 }
             } else if (arg == "-x") {
                 // x origin
@@ -148,13 +148,13 @@ Options parse_options(int argc, char** argv)
                 VALIDATE_IDX("-c has no argument");
                 std::string value(argv[i]);
                 if (value == "tl") {
-                    options.corner = libkaleidoscope::Kaleidoscope::Corner::TL;
+                    options.corner = libkaleidoscope::IKaleidoscope::Corner::TL;
                 } else if (value == "tr") {
-                    options.corner = libkaleidoscope::Kaleidoscope::Corner::TR;
+                    options.corner = libkaleidoscope::IKaleidoscope::Corner::TR;
                 } else if (value == "bl") {
-                    options.corner = libkaleidoscope::Kaleidoscope::Corner::BL;
+                    options.corner = libkaleidoscope::IKaleidoscope::Corner::BL;
                 } else if (value == "br") {
-                    options.corner = libkaleidoscope::Kaleidoscope::Corner::BR;
+                    options.corner = libkaleidoscope::IKaleidoscope::Corner::BR;
                 } else {
                     throw "-c argument " + std::string(argv[i]) + " is not tl, tr, bl or br.";
                 }
@@ -166,9 +166,9 @@ Options parse_options(int argc, char** argv)
                 if (value != "cw" && value != "ccw") {
                     throw "-cd argument " + std::string(argv[i]) + " is not cw or ccw.";
                 } else if (value == "cw") {
-                    options.corner_direction = libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE;
+                    options.corner_direction = libkaleidoscope::IKaleidoscope::Direction::CLOCKWISE;
                 } else {
-                    options.corner_direction = libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE;
+                    options.corner_direction = libkaleidoscope::IKaleidoscope::Direction::ANTICLOCKWISE;
                 }
             } else if (arg == "-b") {
                 // direction
@@ -280,21 +280,21 @@ int main(int argc, char** argv)
         std::cerr << "Error: unable to read file " << opts.in_file << std::endl;
         return -2;
     }
-    libkaleidoscope::Kaleidoscope k(frame.width, frame.height, frame.comp_size, frame.n_comp);
+    std::unique_ptr<libkaleidoscope::IKaleidoscope> k(libkaleidoscope::IKaleidoscope::factory(frame.width, frame.height, frame.comp_size, frame.n_comp));
     libkio::Frame out_frame(frame.width, frame.height, frame.comp_size, frame.n_comp);
 
-    k.set_segmentation(opts.segmentation);
-    k.set_segment_direction(opts.direction);
-    k.set_origin(opts.origin_x, opts.origin_y);
-    k.set_preferred_corner(opts.corner);
-    k.set_preferred_corner_search_direction(opts.corner_direction);
-    k.set_reflect_edges(!opts.bg_set);
-    k.set_background_colour(opts.bg_colour);
-    k.set_edge_threshold(opts.edge_threshold);
-    k.set_source_segment(opts.start_angle * 3.14159254f / 180);
-    k.set_threading(opts.threads);
+    k->set_segmentation(opts.segmentation);
+    k->set_segment_direction(opts.direction);
+    k->set_origin(opts.origin_x, opts.origin_y);
+    k->set_preferred_corner(opts.corner);
+    k->set_preferred_corner_search_direction(opts.corner_direction);
+    k->set_reflect_edges(!opts.bg_set);
+    k->set_background_colour(opts.bg_colour);
+    k->set_edge_threshold(opts.edge_threshold);
+    k->set_source_segment(opts.start_angle * 3.14159254f / 180);
+    k->set_threading(opts.threads);
 
-    k.process(frame.data.get(), out_frame.data.get());
+    k->process(frame.data.get(), out_frame.data.get());
     libkio::write_pbm(opts.out_file.c_str(), out_frame);
 
     return 0;

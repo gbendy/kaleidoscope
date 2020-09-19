@@ -1,12 +1,12 @@
 #include "frei0r.hpp"
 
-#include "libkaleidoscope.h"
+#include "ikaleidoscope.h"
 
-class kaleid0sc0pe : public frei0r::filter, public libkaleidoscope::Kaleidoscope
+class kaleid0sc0pe : public frei0r::filter
 {
 public:
     kaleid0sc0pe(unsigned int width, unsigned int height):
-        libkaleidoscope::Kaleidoscope(width,height,1,4),
+        m_kaleidoscope(libkaleidoscope::IKaleidoscope::factory(width,height,1,4)),
         m_origin_x(0.5),
         m_origin_y(0.5),
         m_segmentation(16/128.0),
@@ -67,7 +67,7 @@ public:
                                 "the number of threads to use, if 0 then autocalculate otherwise value * 32. default 0");
 
 
-        set_background_colour(m_background);
+        m_kaleidoscope->set_background_colour(m_background);
     }
 
     virtual void update(double time,
@@ -77,7 +77,7 @@ public:
         if (m_dirty) {
             update_params();
         }
-        process(in, out);
+        m_kaleidoscope->process(in, out);
     }
 
     virtual void set_param_value(f0r_param_t param, int param_index)
@@ -89,41 +89,41 @@ public:
 private:
     void update_params()
     {
-        set_origin(static_cast<float>(m_origin_x), static_cast<float>(m_origin_y));
-        set_segmentation(static_cast<std::uint32_t>(m_segmentation * 128));
+        m_kaleidoscope->set_origin(static_cast<float>(m_origin_x), static_cast<float>(m_origin_y));
+        m_kaleidoscope->set_segmentation(static_cast<std::uint32_t>(m_segmentation * 128));
         if (m_direction < 1/3.0) {
-            set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::NONE);
+            m_kaleidoscope->set_segment_direction(libkaleidoscope::IKaleidoscope::Direction::NONE);
         } else if (m_direction < 2/3.0) {
-            set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE);
+            m_kaleidoscope->set_segment_direction(libkaleidoscope::IKaleidoscope::Direction::ANTICLOCKWISE);
         } else {
-            set_segment_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE);
+            m_kaleidoscope->set_segment_direction(libkaleidoscope::IKaleidoscope::Direction::CLOCKWISE);
         }
         if (m_corner < 0.25) {
-            set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TR);
+            m_kaleidoscope->set_preferred_corner(libkaleidoscope::IKaleidoscope::Corner::TR);
         } else if (m_corner < 0.5) {
-            set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::TL);
+            m_kaleidoscope->set_preferred_corner(libkaleidoscope::IKaleidoscope::Corner::TL);
         } else if (m_corner < 0.75) {
-            set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::BL);
+            m_kaleidoscope->set_preferred_corner(libkaleidoscope::IKaleidoscope::Corner::BL);
         } else {
-            set_preferred_corner(libkaleidoscope::Kaleidoscope::Corner::BR);
+            m_kaleidoscope->set_preferred_corner(libkaleidoscope::IKaleidoscope::Corner::BR);
         }
         if (m_corner_direction) {
-            set_preferred_corner_search_direction(libkaleidoscope::Kaleidoscope::Direction::CLOCKWISE);
+            m_kaleidoscope->set_preferred_corner_search_direction(libkaleidoscope::IKaleidoscope::Direction::CLOCKWISE);
         } else {
-            set_preferred_corner_search_direction(libkaleidoscope::Kaleidoscope::Direction::ANTICLOCKWISE);
+            m_kaleidoscope->set_preferred_corner_search_direction(libkaleidoscope::IKaleidoscope::Direction::ANTICLOCKWISE);
         }
-        set_reflect_edges(m_reflect_edges);
-        set_edge_threshold(static_cast<std::uint32_t>(m_edge_threshold * 4));
+        m_kaleidoscope->set_reflect_edges(m_reflect_edges);
+        m_kaleidoscope->set_edge_threshold(static_cast<std::uint32_t>(m_edge_threshold * 4));
 
         if (m_specify_source) {
-            set_source_segment(static_cast<float>(m_source_segment) * 3.141592654f * 2);
+            m_kaleidoscope->set_source_segment(static_cast<float>(m_source_segment) * 3.141592654f * 2);
         } else {
-            set_source_segment(-1);
+            m_kaleidoscope->set_source_segment(-1);
         }
         if (m_multithreaded) {
-            set_threading(static_cast<std::uint32_t>(m_threads * 32));
+            m_kaleidoscope->set_threading(static_cast<std::uint32_t>(m_threads * 32));
         } else {
-            set_threading(1);
+            m_kaleidoscope->set_threading(1);
         }
         m_background[0] = static_cast<std::uint8_t>(m_bg_colour.r * 255);
         m_background[1] = static_cast<std::uint8_t>(m_bg_colour.g * 255);
@@ -158,6 +158,8 @@ private:
     std::uint8_t m_background[4];
 
     bool m_dirty;
+
+    std::unique_ptr<libkaleidoscope::IKaleidoscope> m_kaleidoscope;
 };
 
 frei0r::construct<kaleid0sc0pe> plugin("Kaleid0sc0pe", "Applies a kaleidoscope effect to a source image", "Brendan Hack", 1, 0, F0R_COLOR_MODEL_RGBA8888);

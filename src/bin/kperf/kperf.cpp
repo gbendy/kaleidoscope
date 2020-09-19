@@ -1,4 +1,4 @@
-#include "libkaleidoscope.h"
+#include "ikaleidoscope.h"
 #include "libkio.h"
 
 #include <chrono>
@@ -37,7 +37,7 @@ int main(int argc, char** argv)
 {
     libkio::Frame frame_in(1920, 1080, 1, 4);
     libkio::Frame frame_out(1920, 1080, 1, 4);
-    libkaleidoscope::Kaleidoscope k(frame_in.width, frame_in.height, frame_in.comp_size, frame_in.n_comp);
+    std::unique_ptr<libkaleidoscope::IKaleidoscope> k(libkaleidoscope::IKaleidoscope::factory(frame_in.width, frame_in.height, frame_in.comp_size, frame_in.n_comp));
     std::uint32_t n_threads(1);
     bool heuristics(false);
     std::uint32_t frame_count(100);
@@ -102,14 +102,14 @@ int main(int argc, char** argv)
         std::cout << std::endl;
     }
     for (auto t: threads) {
-        k.set_threading(t);
+        k->set_threading(t);
         std::vector<std::chrono::duration<float>> totals;
 
         for (auto seg : segs) {
-            k.set_segmentation(seg);
+            k->set_segmentation(seg);
 
             // preprocess
-            k.process(frame_in.data.get(), frame_out.data.get());
+            k->process(frame_in.data.get(), frame_out.data.get());
 
             std::chrono::duration<float> duration(0);
             if (!heuristics) {
@@ -117,7 +117,7 @@ int main(int argc, char** argv)
             }
             for (std::size_t i = 0; i < frame_count; ++i) {
                 auto start = std::chrono::steady_clock::now();
-                k.process(frame_in.data.get(), frame_out.data.get());
+                k->process(frame_in.data.get(), frame_out.data.get());
                 duration += std::chrono::duration_cast<std::chrono::microseconds>(std::chrono::steady_clock::now() - start);
             }
             if (heuristics) {
