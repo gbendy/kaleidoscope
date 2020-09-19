@@ -27,8 +27,6 @@ struct Options {
 
     std::uint32_t threads;
 
-    bool use_reflections;
-
     Options():
         segmentation(16),
         direction(libkaleidoscope::IKaleidoscope::Direction::NONE),
@@ -39,8 +37,7 @@ struct Options {
         bg_set(false),
         edge_threshold(0),
         start_angle(-1),
-        threads(0),
-        use_reflections(false)
+        threads(0)
     {
         bg_colour[0] = 0xff;
         bg_colour[1] = 0x00;
@@ -50,7 +47,7 @@ struct Options {
 
 void print_usage(const char* arg0)
 {
-    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d c|cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb] [-e threshold] [-a angle] [-t threads] [-r] infile outfile" << std::endl;
+    std::cerr << "usage: " << arg0 << " [-h] [-s segmentation] [-d c|cw|ccw] [-x origin_x] [-y origin_y] [-c tl|tr|bl|br] [-cd cw|ccw] [-b rrggbb] [-e threshold] [-a angle] [-t threads] infile outfile" << std::endl;
 }
 
 std::string to_string(libkaleidoscope::IKaleidoscope::Direction d)
@@ -92,7 +89,6 @@ void print_help(const char* arg0)
     std::cerr << "    -e  integer       edge threshold                        (default " << o.edge_threshold << ")" << std::endl;
     std::cerr << "    -a  float         start angle in degrees" << std::endl;
     std::cerr << "    -t  integer       number of threads to use.             (default " << o.threads << ")" << std::endl;
-    std::cerr << "    -r                calculate using actual reflections" << std::endl;
     std::cerr << "    infile            input PBM (P6) image" << std::endl;
     std::cerr << "    outfile           output PBM (P6) image" << std::endl;
 }
@@ -239,8 +235,6 @@ Options parse_options(int argc, char** argv)
                 if (ss.fail() || !ss.eof()) {
                     throw "Could not convert -t argument " + std::string(argv[i]) + " to an integer.";
                 }
-            } else if (arg == "-r") {
-                options.use_reflections = true;
             } else if (arg == "-h") {
                 print_help(argv[0]);
                 return Options();
@@ -299,7 +293,6 @@ int main(int argc, char** argv)
     k->set_edge_threshold(opts.edge_threshold);
     k->set_source_segment(opts.start_angle * 3.14159254f / 180);
     k->set_threading(opts.threads);
-    k->use_reflection(opts.use_reflections);
 
     k->process(frame.data.get(), out_frame.data.get());
     libkio::write_pbm(opts.out_file.c_str(), out_frame);

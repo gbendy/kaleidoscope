@@ -244,24 +244,6 @@ public:
     virtual std::uint32_t get_threading() const = 0;
 
     /**
-     * Sets whether to use actual reflection calculation or rotation. For lower segmentation
-     * values reflection can be faster than rotation whereas rotation operates at a constant
-     * speed.
-     * Default to false.
-     * @param use_reflection if true then use reflection otherwise rotation.
-     * @return
-     *          -  0: Success
-     *          - -1: Error
-     */
-    virtual std::int32_t use_reflection(bool use_reflection) = 0;
-
-    /**
-     * Returns whether calculation uses reflection or rotation.
-     */
-    virtual bool using_reflection() const = 0;
-
-
-    /**
      * Visualises the currently configured segmentation. The pure green segment is the 
      * source segment.
      * @param out_frame receives the output image
