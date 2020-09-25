@@ -1,4 +1,5 @@
 ADD_SUBDIRECTORY( kimg/ )
 ADD_SUBDIRECTORY( kperf/ )
 ADD_SUBDIRECTORY( ktest/ )
+ADD_SUBDIRECTORY( kdiff/ )
 ADD_SUBDIRECTORY( kaleid0sc0pe/ )
