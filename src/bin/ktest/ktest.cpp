@@ -45,5 +45,23 @@ int main(int argc, char** argv)
     k->visualise( frame.data.get());
     libkio::write_pbm("trc.pbm", frame);
 
+    k->set_segment_direction(libkaleidoscope::IKaleidoscope::Direction::NONE);
+
+    k->set_preferred_corner(libkaleidoscope::IKaleidoscope::Corner::TL);
+    k->visualise(frame.data.get());
+    libkio::write_pbm("tlm.pbm", frame);
+
+    k->set_preferred_corner(libkaleidoscope::IKaleidoscope::Corner::BL);
+    k->visualise(frame.data.get());
+    libkio::write_pbm("blm.pbm", frame);
+
+    k->set_preferred_corner(libkaleidoscope::IKaleidoscope::Corner::BR);
+    k->visualise(frame.data.get());
+    libkio::write_pbm("brm.pbm", frame);
+
+    k->set_preferred_corner(libkaleidoscope::IKaleidoscope::Corner::TR);
+    k->visualise(frame.data.get());
+    libkio::write_pbm("trm.pbm", frame);
+
     return 0;
 }
