@@ -5,7 +5,7 @@
 
 void print_usage(const char* arg0)
 {
-    std::cerr << "usage: " << arg0 << " reference_image compare_image" << std::endl;
+    std::cerr << "usage: " << arg0 << " reference_image compare_image [out]" << std::endl;
 }
 
 std::uint32_t err(std::uint8_t *a, std::uint8_t *b)
@@ -63,18 +63,23 @@ int main(int argc, char** argv)
             cumulative_err += diff;
             cumulative_squared_err += static_cast<std::size_t>(diff) * diff;
             count_err++;
+
+            *(i1 - pixel_size) = 255;
         }
     }
     if (cumulative_err == 0) {
         std::cout << "identical" << std::endl;
     } else {
-        std::cout << 100 * count_err / static_cast<float>(pixel_count) << "% pixels differ max diff: " << max_err << 
+        std::cout << 100 * count_err / static_cast<float>(pixel_count) << "% " <<
+            " MAX: " << max_err << 
             " MAE: " << cumulative_err / static_cast<float>(pixel_count) << 
             " MSE: " << cumulative_squared_err / static_cast<float>(pixel_count) << 
             " RMSE: " << std::sqrt(cumulative_squared_err / static_cast<float>(pixel_count)) <<
             " PSNR: " << 10 * std::log10(255 * 255 / (cumulative_squared_err / static_cast<float>(pixel_count))) <<
             " of " << count_err << " errors." << std::endl;
     }
-
-    return 0;
+    if (argc > 3) {
+        libkio::write_pbm(argv[3], img1);
+    }
+    return cumulative_err ? 1 : 0;
 }
