@@ -5,6 +5,10 @@
 #include <cstring>
 #include <future>
 
+#ifdef USE_SSE2
+#include "sse_mathfun_extension.h"
+#endif
+
 #ifndef M_PI
 #define M_PI  3.14159265358979323846
 #endif
@@ -41,6 +45,7 @@ m_height(height),
 m_component_size(component_size),
 m_num_components(num_components),
 m_stride(stride ? stride : width * component_size * num_components),
+m_pixel_size(component_size * num_components),
 m_aspect(width/static_cast<float>(height)),
 m_origin_x(0.5f),
 m_origin_y(0.5f),
@@ -59,6 +64,16 @@ m_start_angle(0),
 m_segment_width(0),
 m_n_threads(0)
 {
+#ifdef USE_SSE2
+    m_sse_aspect = _mm_set1_ps(m_width / static_cast<float>(m_height));
+    m_sse_ps_0 = _mm_set1_ps(0.0f);
+    m_sse_ps_1 = _mm_set1_ps(1.0f);
+    m_sse_ps_1 = _mm_set1_ps(1.0f);
+    m_sse_ps_2 = _mm_set1_ps(2.0f);
+    m_sse_epi32_1 = _mm_set1_epi32(1);
+    m_sse_epi32_2 = _mm_set1_epi32(2);
+    m_sse_shift_1 = _mm_cvtsi32_si128(1);
+#endif
 }
 
 std::int32_t Kaleidoscope::set_origin(float x, float y)
@@ -229,8 +244,63 @@ void Kaleidoscope::init()
     } else {
         m_start_angle = -m_source_segment_angle;
     }
+#ifdef USE_SSE2
+    m_sse_origin_native_x = _mm_set1_ps(m_origin_x * m_width);
+    m_sse_origin_native_y = _mm_set1_ps(m_origin_y * m_height);
+    m_sse_start_angle = _mm_set1_ps(m_start_angle);
+    m_sse_segment_width = _mm_set1_ps(m_segment_width);
+    m_sse_half_segment_width = _mm_set1_ps(m_segment_width/2);
+#endif
 }
 
+#ifdef USE_SSE2
+Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(__m128i* x, __m128i* y)
+{
+    Reflect_info info;
+
+    to_screen(&info.screen_x, &info.screen_y, x, y);
+
+    // info.angle = std::atan2(info.screen_y, info.screen_x) - m_start_angle;
+    // info.reference_angle = std::fabs(info.angle) + m_segment_width / 2;
+    // info.segment_number = std::uint32_t(info.reference_angle / m_segment_width);
+
+    float* sx = reinterpret_cast<float*>(&info.screen_x);
+    float* sy = reinterpret_cast<float*>(&info.screen_y);
+    /*ALIGN16_BEG float ALIGN16_END at[4];
+    at[0] = std::atan2(*sy++, *sx++);
+    at[1] = std::atan2(*sy++, *sx++);
+    at[2] = std::atan2(*sy++, *sx++);
+    at[3] = std::atan2(*sy++, *sx++);*/
+    info.angle = _mm_sub_ps(atan2_ps(info.screen_y, info.screen_x), m_sse_start_angle);
+    info.reference_angle = _mm_add_ps(_mm_and_ps(info.angle, *(v4sf*)_ps_inv_sign_mask), m_sse_half_segment_width);
+    // we do a max with 0 since atan2_ps will return nan for atan2(0,0) which ends up with a negative reference angle.
+    //info.segment_number = _mm_max_ps(_mm_div_ps(info.reference_angle, m_sse_segment_width), m_sse_ps_0);
+    info.segment_number_i = _mm_cvttps_epi32(_mm_max_ps(_mm_div_ps(info.reference_angle, m_sse_segment_width), m_sse_ps_0));
+    info.segment_number = _mm_cvtepi32_ps(info.segment_number_i);
+    
+    return info;
+}
+
+void Kaleidoscope::to_screen(__m128* x, __m128* y, __m128i* sx, __m128i* sy)
+{
+    // x = sx - m_origin_native_x;
+    *x = _mm_cvtepi32_ps(*sx);
+    *x = _mm_sub_ps(*x, m_sse_origin_native_x);
+    // y = (sy - m_origin_native_y) * m_aspect;
+    *y = _mm_cvtepi32_ps(*sy);
+    *y = _mm_sub_ps(*y, m_sse_origin_native_y);
+    *y = _mm_mul_ps(*y, m_sse_aspect);
+}
+
+void Kaleidoscope::from_screen(__m128* x, __m128* y)
+{
+    //x += m_origin_native_x;
+    *x = _mm_add_ps(*x, m_sse_origin_native_x);
+    // y = y / m_aspect + m_origin_native_y;
+    *y = _mm_div_ps(*y, m_sse_aspect);
+    *y = _mm_add_ps(*y, m_sse_origin_native_y);
+}
+#else
 Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x, std::uint32_t y)
 {
     Reflect_info info;
@@ -243,7 +313,6 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x,
 
     return info;
 }
-
 void Kaleidoscope::to_screen(float& x, float& y, std::uint32_t sx, std::uint32_t sy)
 {
     x = sx - m_origin_native_x;
@@ -255,15 +324,135 @@ void Kaleidoscope::from_screen(float& x, float& y)
     x += m_origin_native_x;
     y = y / m_aspect + m_origin_native_y;
 }
+#endif
+
+#ifdef USE_SSE2
+void Kaleidoscope::process_rotation(std::int32_t segment_number, float source_x, float source_y, const std::uint8_t *in, std::uint8_t* out)
+{
+    if (m_edge_reflect) {
+        if (source_x < 0) {
+            source_x = -source_x;
+        } else if (source_x > m_width - 10e-4f) {
+            source_x = m_width - (source_x - m_width + 10e-4f);
+        } if (source_y < 0) {
+            source_y = -source_y;
+        } else if (source_y > m_height - 10e-4f) {
+            source_y = m_height - (source_y - m_height + 10e-4f);
+        }
+        std::memcpy(out, lookup(in, (std::uint32_t) source_x, (std::uint32_t) source_y), m_pixel_size);
+    } else {
+        if (source_x < 0 && -source_x <= m_edge_threshold) {
+            source_x = 0;
+        } else if (source_x >= m_width && source_x < m_width + m_edge_threshold) {
+            source_x = m_width - 1.0f;
+        }
+        if (source_y < 0 && -source_y <= m_edge_threshold) {
+            source_y = 0;
+        } else if (source_y >= m_height && source_y < m_height + m_edge_threshold) {
+            source_y = m_height - 1.0f;
+        }
+        if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
+            (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
+            std::memcpy(out, lookup(in, (std::uint32_t) source_x, (std::uint32_t) source_y), m_pixel_size);
+        } else if (m_background_colour) {
+            std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), m_pixel_size);
+        }
+    }
+}
+#endif
+
+const std::uint8_t *Kaleidoscope::lookup(const std::uint8_t* p, std::uint32_t x, std::uint32_t y)
+{
+    return p + m_stride * y + m_pixel_size * x;
+}
+
+std::uint8_t* Kaleidoscope::lookup(std::uint8_t* p, std::uint32_t x, std::uint32_t y)
+{
+    return p + m_stride * y + m_pixel_size * x;
+}
+
+float normalise(float v, float min, float max)
+{
+    return (v - min) / (max - min);
+}
 
 void Kaleidoscope::process_block(Block *block)
 {
-    std::uint32_t pixel_size = m_num_components * m_component_size;
-
     for (std::uint32_t y = block->y_start; y <= block->y_end; ++y) {
-        for (std::uint32_t x = block->x_start; x <= block->x_end; ++x) {
-            std::uint8_t* out = block->out_frame + m_stride * y + pixel_size * x;
+#ifdef USE_SSE2
+        for (std::uint32_t x = 0; x < m_width; x += 4) {
+#else
+        for (std::uint32_t x = 0; x < m_width; ++x) {
+#endif
+            std::uint8_t* out = lookup(block->out_frame, x, y);
+#ifdef USE_SSE2
+            ALIGN16_BEG int ALIGN16_END mx[4] = { static_cast<int>(x), static_cast<int>(x) + 1, static_cast<int>(x) + 2, static_cast<int>(x) + 3 };
+            ALIGN16_BEG int ALIGN16_END my[4] = { static_cast<int>(y), static_cast<int>(y), static_cast<int>(y), static_cast<int>(y) };
 
+            Reflect_info info = calculate_reflect_info((__m128i*)mx, (__m128i*)my);
+
+            // float reflection_angle = (info.segment_number * m_segment_width);
+            __m128 reflection_angle = _mm_mul_ps(info.segment_number, m_sse_segment_width);
+            
+            //reflection_angle -= info.segment_number % 2 ? (m_segment_width - 2 * (info.reference_angle - reflection_angle)) : 0;
+            __m128i segi_p1 = _mm_add_epi32(info.segment_number_i, m_sse_epi32_1);
+            __m128 refl_factor = _mm_cvtepi32_ps(_mm_sub_epi32(_mm_srl_epi32(segi_p1, m_sse_shift_1), _mm_srl_epi32(info.segment_number_i, m_sse_shift_1)));
+
+           reflection_angle = _mm_sub_ps(reflection_angle, _mm_mul_ps(refl_factor, _mm_sub_ps(m_sse_segment_width, _mm_mul_ps(m_sse_ps_2, _mm_sub_ps(info.reference_angle, reflection_angle)))));
+          
+           // reflection_angle *= std::signbit(info.angle) ? 1 : -1;            
+           reflection_angle = _mm_mul_ps(reflection_angle,_mm_sub_ps(m_sse_ps_0, _mm_or_ps(_mm_and_ps(info.angle, *(v4sf*)_ps_sign_mask), m_sse_ps_1)));
+
+            __m128 cos_angle = cos_ps(reflection_angle);
+            __m128 sin_angle = sin_ps(reflection_angle);
+            //float source_x = info.screen_x * cos_angle - info.screen_y * sin_angle;
+            __m128 source_x = _mm_sub_ps(_mm_mul_ps(info.screen_x,cos_angle),_mm_mul_ps(info.screen_y,sin_angle));
+            //float source_y = info.screen_y * cos_angle + info.screen_x * sin_angle;
+            __m128 source_y = _mm_add_ps(_mm_mul_ps(info.screen_y,cos_angle),_mm_mul_ps(info.screen_x,sin_angle));
+
+            from_screen(&source_x, &source_y);
+
+            float *f_segment_number = reinterpret_cast<float*>(&info.segment_number);
+            float *f_source_x = reinterpret_cast<float*>(&source_x);
+            float *f_source_y = reinterpret_cast<float*>(&source_y);
+            
+            std::int32_t segment_number = static_cast<std::int32_t>(*f_segment_number++);
+            if (segment_number) {
+                process_rotation(segment_number, *f_source_x, *f_source_y, block->in_frame, out);
+            } else {
+                std::memcpy(out, lookup(block->in_frame,x,y), m_pixel_size);
+            }
+            out += m_pixel_size;
+            f_source_x++;
+            f_source_y++;
+
+            segment_number = static_cast<std::int32_t>(*f_segment_number++);
+            if (segment_number) {
+                process_rotation(segment_number, *f_source_x, *f_source_y, block->in_frame, out);
+            } else {
+                std::memcpy(out, lookup(block->in_frame, x+1, y), m_pixel_size);
+            }
+            out += m_pixel_size;
+            f_source_x++;
+            f_source_y++;
+
+            segment_number = static_cast<std::int32_t>(*f_segment_number++);
+            if (segment_number) {
+                process_rotation(segment_number, *f_source_x, *f_source_y, block->in_frame, out);
+            } else {
+                std::memcpy(out, lookup(block->in_frame, x+2, y), m_pixel_size);
+            }
+            out += m_pixel_size;
+            f_source_x++;
+            f_source_y++;
+
+            segment_number = static_cast<std::int32_t>(*f_segment_number++);
+            if (segment_number) {
+                process_rotation(segment_number, *f_source_x, *f_source_y, block->in_frame, out);
+            } else {
+                std::memcpy(out, lookup(block->in_frame, x+3, y), m_pixel_size);
+            }
+#else
             Reflect_info info = calculate_reflect_info(x, y);
 
             if (info.segment_number) {
@@ -288,8 +477,7 @@ void Kaleidoscope::process_block(Block *block)
                     } else if (source_y > m_height - 10e-4f) {
                         source_y = m_height - (source_y - m_height + 10e-4f);
                     }
-                    const std::uint8_t* src = block->in_frame + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
-                    std::memcpy(out, src, pixel_size);
+                    std::memcpy(out, lookup(block->in_frame, (std::uint32_t)source_x, (std::uint32_t)source_y), m_pixel_size);
                 } else {
                     if (source_x < 0 && -source_x <= m_edge_threshold) {
                         source_x = 0;
@@ -303,16 +491,15 @@ void Kaleidoscope::process_block(Block *block)
                     }
                     if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
                         (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
-                        const std::uint8_t* src = block->in_frame + m_stride * (std::uint32_t)source_y + pixel_size * (std::uint32_t) source_x;
-                        std::memcpy(out, src, pixel_size);
+                        std::memcpy(out, lookup(block->in_frame, (std::uint32_t)source_x, (std::uint32_t)source_y), m_pixel_size);
                     } else if (m_background_colour) {
-                        std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), pixel_size);
+                        std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), m_pixel_size);
                     }
                 }
             } else {
-                const std::uint8_t* src = block->in_frame + m_stride * y + pixel_size * x;
-                std::memcpy(out, src, pixel_size);
+                std::memcpy(out, lookup(block->in_frame, x, y), m_pixel_size);
             }
+#endif
         }
     }
 }
@@ -400,6 +587,11 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
     if (in_frame == nullptr || out_frame == nullptr) {
         return -2;
     }
+#ifdef USE_SSE2
+    if (m_width % 4 != 0) {
+        return -2;
+    }
+#endif
     if (m_n_segments == 0) {
         init();
     }
@@ -454,16 +646,73 @@ std::int32_t Kaleidoscope::visualise(void* out_frame)
     if (out_frame == nullptr) {
         return -2;
     }
+#ifdef USE_SSE2
+    if (m_width % 4 != 0) {
+        return -2;
+    }
+#endif
     if (m_n_segments == 0) {
         init();
     }
-    std::uint32_t pixel_size = m_num_components * m_component_size;
 
     for (std::uint32_t y = 0; y < m_height; ++y) {
+#ifdef USE_SSE2
+        for (std::uint32_t x = 0; x < m_width; x+=4) {
+#else
         for (std::uint32_t x = 0; x < m_width; ++x) {
-            std::uint8_t* out = reinterpret_cast<std::uint8_t*>(out_frame) + m_stride * y + pixel_size * x;
-            Reflect_info info = calculate_reflect_info(x, y);
+#endif
+            std::uint8_t* out = lookup(reinterpret_cast<std::uint8_t*>(out_frame), x, y);
+#ifdef USE_SSE2
+            ALIGN16_BEG int ALIGN16_END mx[4] = { static_cast<int>(x), static_cast<int>(x) + 1, static_cast<int>(x) + 2, static_cast<int>(x) + 3};
+            ALIGN16_BEG int ALIGN16_END my[4] = { static_cast<int>(y), static_cast<int>(y), static_cast<int>(y), static_cast<int>(y) };
+            
+            Reflect_info info = calculate_reflect_info((__m128i*)mx, (__m128i*)my);
+            //float* segment_number = reinterpret_cast<float*>(&info.segment_number);
+            std::int32_t* segment_number = reinterpret_cast<std::int32_t*>(&info.segment_number_i);
+            std::uint32_t col_idx = (*segment_number) % 63;
+            out[0] = colours[col_idx][0];
+            out[1] = colours[col_idx][1];
+            out[2] = colours[col_idx][2];
+            if (m_num_components > 3) {
+                out[3] = 0xff;
+                out++;
+            }
+            segment_number++;
+            out += 3;
 
+            col_idx = (*segment_number) % 63;
+            out[0] = colours[col_idx][0];
+            out[1] = colours[col_idx][1];
+            out[2] = colours[col_idx][2];
+            if (m_num_components > 3) {
+                out[3] = 0xff;
+                out++;
+            }
+            segment_number++;
+            out += 3;
+
+            col_idx = (*segment_number) % 63;
+            out[0] = colours[col_idx][0];
+            out[1] = colours[col_idx][1];
+            out[2] = colours[col_idx][2];
+            if (m_num_components > 3) {
+                out[3] = 0xff;
+                out++;
+            }
+            segment_number++;
+            out += 3;
+
+            col_idx = (*segment_number) % 63;
+            out[0] = colours[col_idx][0];
+            out[1] = colours[col_idx][1];
+            out[2] = colours[col_idx][2];
+            if (m_num_components > 3) {
+                out[3] = 0xff;
+                out++;
+            }
+
+#else
+            Reflect_info info = calculate_reflect_info(x, y);
             std::uint32_t col_idx = info.segment_number % 63;
             out[0] = colours[col_idx][0];
             out[1] = colours[col_idx][1];
@@ -471,6 +720,8 @@ std::int32_t Kaleidoscope::visualise(void* out_frame)
             if (m_num_components > 3) {
                 out[3] = 0xff;
             }
+#endif
+
         }
     }
     return 0;

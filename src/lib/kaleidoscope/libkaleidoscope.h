@@ -7,6 +7,17 @@
 #include <cmath>
 #include <functional>
 
+#if _M_IX86_FP == 2 || _M_X64 == 100
+#ifndef _M_ARM 
+#define __SSE2__
+#endif
+#endif
+
+#ifdef __SSE2__
+#define USE_SSE2
+#include <emmintrin.h>
+#endif
+
 namespace libkaleidoscope {
 
 /**
@@ -239,7 +250,33 @@ public:
 private:
     void init();
 
+#ifdef USE_SSE2
+    /// Defines reflection information for a given point in the frame
+    struct Reflect_info {
+        __m128 screen_x;                 ///< x coordinate in screen space (range -0.5->0.5, left negative)
+        __m128 screen_y;                 ///< y coordinate in screen space (range -0.5->0.5, top negative)
+        __m128 angle;                    ///< angle from this point to the start of the source segment
+        __m128 segment_number;           ///< segment number the point resides in
+        __m128i segment_number_i;
+        __m128 reference_angle;          ///< positive angle to start of source segment
+    };
 
+    Reflect_info calculate_reflect_info(__m128i *x, __m128i *y);
+
+    /// Converts coordinates to screen space
+    /// @param x x coordinate
+    /// @param y y coordinate
+    /// @param sx source x coordinate
+    /// @param sy source y coordinate
+    void to_screen(__m128 *x, __m128 *y, __m128i *sx, __m128i *sy);
+
+    /// Converts coordinates from screen space in place
+    /// @param x x coordinate
+    /// @param y y coordinate
+    void from_screen(__m128 *x, __m128 *y);
+
+    void process_rotation(std::int32_t segment_number, float source_x, float source_y, const std::uint8_t* in, std::uint8_t* out);
+#else
     /// Defines reflection information for a given point in the frame
     struct Reflect_info {
         float screen_x;                 ///< x coordinate in screen space (range -0.5->0.5, left negative)
@@ -267,7 +304,7 @@ private:
     /// @param x x coordinate
     /// @param y y coordinate
     void from_screen(float& x, float& y);
-    
+#endif    
     /// A block of data to process
     struct Block {
         const std::uint8_t* in_frame;
@@ -295,12 +332,17 @@ private:
     
     /// Process a block
     void process_block(Block *block);
+
+    std::uint8_t *lookup(std::uint8_t *p, std::uint32_t x, std::uint32_t y);
+
+    const std::uint8_t* lookup(const std::uint8_t* p, std::uint32_t x, std::uint32_t y);
         
     std::uint32_t m_width;
     std::uint32_t m_height;
     std::uint32_t m_component_size;
     std::uint32_t m_num_components;
     std::uint32_t m_stride;
+    std::uint32_t m_pixel_size;
 
     float m_aspect;
 
@@ -308,7 +350,6 @@ private:
     float m_origin_y;
     float m_origin_native_x;
     float m_origin_native_y;
-
 
     std::uint32_t m_segmentation;
     Direction m_segment_direction;
@@ -328,6 +369,21 @@ private:
     float m_segment_width;
 
     std::uint32_t m_n_threads;
+
+#ifdef USE_SSE2
+    __m128 m_sse_aspect;
+    __m128 m_sse_origin_native_x;
+    __m128 m_sse_origin_native_y;
+    __m128 m_sse_start_angle;
+    __m128 m_sse_segment_width;
+    __m128 m_sse_half_segment_width;
+    __m128 m_sse_ps_0;
+    __m128 m_sse_ps_1;
+    __m128 m_sse_ps_2;
+    __m128i m_sse_epi32_1;
+    __m128i m_sse_epi32_2;
+    __m128i m_sse_shift_1;
+#endif
 };
 
 }

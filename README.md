@@ -12,7 +12,8 @@ Allows for specification of number of segments (mirrors), auto selection of opti
 
 # Build
 
-Builds with cmake. No dependencies
+Builds with cmake. All dependencies are included. Makes use of Tolga Mizrak and Julien Pommier's trig functions for 
+SSE2: [sse_mathfun_extension](https://github.com/to-miz/sse_mathfun_extension "sse_mathfn_extension").
 
 ## GNU / Linux
 

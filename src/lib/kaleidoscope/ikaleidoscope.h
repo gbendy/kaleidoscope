@@ -260,7 +260,7 @@ public:
     virtual ~IKaleidoscope() {};
 
     /**
-     * Static factory function.
+     * Static factory function. Frame width and height must be a multiple of 4.
      * @param width the frame width
      * @param height the frame height
      * @param component_size the byte size of each frame pixel component
