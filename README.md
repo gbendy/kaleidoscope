@@ -21,7 +21,7 @@ SSE2: [sse_mathfun_extension](https://github.com/to-miz/sse_mathfun_extension "s
 $ git clone https://github.com/gbendy/kaleidoscope.git
 $ mkdir kbuild
 $ cd kbuild
-$ cmake ../kaleidoscope
+$ cmake DCMAKE_BUILD_TYPE=Release ../kaleidoscope
 $ make
 $ make install
 ```
