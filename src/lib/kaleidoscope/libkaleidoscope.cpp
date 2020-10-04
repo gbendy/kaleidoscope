@@ -65,6 +65,8 @@ m_segment_width(0),
 m_n_threads(0)
 {
 #ifdef USE_SSE2
+    m_sse_width = _mm_set1_ps(static_cast<float>(m_width));
+    m_sse_height = _mm_set1_ps(static_cast<float>(m_height));
     m_sse_aspect = _mm_set1_ps(m_width / static_cast<float>(m_height));
     m_sse_ps_0 = _mm_set1_ps(0.0f);
     m_sse_ps_1 = _mm_set1_ps(1.0f);
@@ -264,13 +266,6 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(__m128i* x, __m1
     // info.reference_angle = std::fabs(info.angle) + m_segment_width / 2;
     // info.segment_number = std::uint32_t(info.reference_angle / m_segment_width);
 
-    float* sx = reinterpret_cast<float*>(&info.screen_x);
-    float* sy = reinterpret_cast<float*>(&info.screen_y);
-    /*ALIGN16_BEG float ALIGN16_END at[4];
-    at[0] = std::atan2(*sy++, *sx++);
-    at[1] = std::atan2(*sy++, *sx++);
-    at[2] = std::atan2(*sy++, *sx++);
-    at[3] = std::atan2(*sy++, *sx++);*/
     info.angle = _mm_sub_ps(atan2_ps(info.screen_y, info.screen_x), m_sse_start_angle);
     info.reference_angle = _mm_add_ps(_mm_and_ps(info.angle, *(v4sf*)_ps_inv_sign_mask), m_sse_half_segment_width);
     // we do a max with 0 since atan2_ps will return nan for atan2(0,0) which ends up with a negative reference angle.
@@ -300,6 +295,39 @@ void Kaleidoscope::from_screen(__m128* x, __m128* y)
     *y = _mm_div_ps(*y, m_sse_aspect);
     *y = _mm_add_ps(*y, m_sse_origin_native_y);
 }
+
+void Kaleidoscope::rotate(int x, int y, __m128 *source_x, __m128 *source_y)
+{
+    ALIGN16_BEG int ALIGN16_END mx[4] = { x, x + 1, x + 2, x + 3 };
+    ALIGN16_BEG int ALIGN16_END my[4] = { y, y, y, y };
+
+    Reflect_info info = calculate_reflect_info((__m128i*)mx, (__m128i*)my);
+
+    // float reflection_angle = (info.segment_number * m_segment_width);
+    __m128 reflection_angle = _mm_mul_ps(info.segment_number, m_sse_segment_width);
+
+    //reflection_angle -= info.segment_number % 2 ? (m_segment_width - 2 * (info.reference_angle - reflection_angle)) : 0;
+    __m128i segi_p1 = _mm_add_epi32(info.segment_number_i, m_sse_epi32_1);
+    __m128 refl_factor = _mm_cvtepi32_ps(_mm_sub_epi32(_mm_srl_epi32(segi_p1, m_sse_shift_1), _mm_srl_epi32(info.segment_number_i, m_sse_shift_1)));
+
+    reflection_angle = _mm_sub_ps(reflection_angle, _mm_mul_ps(refl_factor, _mm_sub_ps(m_sse_segment_width, _mm_mul_ps(m_sse_ps_2, _mm_sub_ps(info.reference_angle, reflection_angle)))));
+
+    // reflection_angle *= std::signbit(info.angle) ? 1 : -1;
+    reflection_angle = _mm_mul_ps(reflection_angle, _mm_sub_ps(m_sse_ps_0, _mm_or_ps(_mm_and_ps(info.angle, *(v4sf*)_ps_sign_mask), m_sse_ps_1)));
+
+    // reflection_angle = reflection_angle * info.segment_number >= 1, zero out reflection if in segment 0
+    reflection_angle = _mm_mul_ps(reflection_angle, _mm_and_ps(_mm_cmpge_ps(info.segment_number, m_sse_ps_1), m_sse_ps_1));
+
+    __m128 cos_angle = cos_ps(reflection_angle);
+    __m128 sin_angle = sin_ps(reflection_angle);
+    //float source_x = info.screen_x * cos_angle - info.screen_y * sin_angle;
+    *source_x = _mm_sub_ps(_mm_mul_ps(info.screen_x, cos_angle), _mm_mul_ps(info.screen_y, sin_angle));
+    //float source_y = info.screen_y * cos_angle + info.screen_x * sin_angle;
+    *source_y = _mm_add_ps(_mm_mul_ps(info.screen_y, cos_angle), _mm_mul_ps(info.screen_x, sin_angle));
+
+    from_screen(source_x, source_y);
+}
+
 #else
 Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(std::uint32_t x, std::uint32_t y)
 {
@@ -326,133 +354,112 @@ void Kaleidoscope::from_screen(float& x, float& y)
 }
 #endif
 
-#ifdef USE_SSE2
-void Kaleidoscope::process_rotation(std::int32_t segment_number, float source_x, float source_y, const std::uint8_t *in, std::uint8_t* out)
-{
-    if (m_edge_reflect) {
-        if (source_x < 0) {
-            source_x = -source_x;
-        } else if (source_x > m_width - 10e-4f) {
-            source_x = m_width - (source_x - m_width + 10e-4f);
-        } if (source_y < 0) {
-            source_y = -source_y;
-        } else if (source_y > m_height - 10e-4f) {
-            source_y = m_height - (source_y - m_height + 10e-4f);
-        }
-        std::memcpy(out, lookup(in, (std::uint32_t) source_x, (std::uint32_t) source_y), m_pixel_size);
-    } else {
-        if (source_x < 0 && -source_x <= m_edge_threshold) {
-            source_x = 0;
-        } else if (source_x >= m_width && source_x < m_width + m_edge_threshold) {
-            source_x = m_width - 1.0f;
-        }
-        if (source_y < 0 && -source_y <= m_edge_threshold) {
-            source_y = 0;
-        } else if (source_y >= m_height && source_y < m_height + m_edge_threshold) {
-            source_y = m_height - 1.0f;
-        }
-        if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
-            (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
-            std::memcpy(out, lookup(in, (std::uint32_t) source_x, (std::uint32_t) source_y), m_pixel_size);
-        } else if (m_background_colour) {
-            std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), m_pixel_size);
-        }
-    }
-}
-#endif
-
 const std::uint8_t *Kaleidoscope::lookup(const std::uint8_t* p, std::uint32_t x, std::uint32_t y)
 {
-    return p + m_stride * y + m_pixel_size * x;
+    return p + m_stride * static_cast<std::size_t>(y) + m_pixel_size * static_cast<std::size_t>(x);
 }
 
 std::uint8_t* Kaleidoscope::lookup(std::uint8_t* p, std::uint32_t x, std::uint32_t y)
 {
-    return p + m_stride * y + m_pixel_size * x;
+    return p + m_stride * static_cast<std::size_t>(y) + m_pixel_size * static_cast<std::size_t>(x);
 }
 
-float normalise(float v, float min, float max)
+void Kaleidoscope::process_bg(float x, float y, const std::uint8_t* in, std::uint8_t* out)
 {
-    return (v - min) / (max - min);
+    if (x < 0 && -x <= m_edge_threshold) {
+        x = 0;
+    }
+    else if (x >= m_width && x < m_width + m_edge_threshold) {
+        x = m_width - 1.0f;
+    }
+    if (y < 0 && -y <= m_edge_threshold) {
+        y = 0;
+    }
+    else if (y >= m_height && y < m_height + m_edge_threshold) {
+        y = m_height - 1.0f;
+    }
+    if (static_cast<std::uint32_t>(x) >= 0 && static_cast<std::uint32_t>(x) < m_width &&
+        static_cast<std::uint32_t>(y) >= 0 && static_cast<std::uint32_t>(y) < m_height) {
+        std::memcpy(out, lookup(in, static_cast<std::uint32_t>(x), static_cast<std::uint32_t>(y)), m_pixel_size);
+    }
+    else if (m_background_colour) {
+        std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), m_pixel_size);
+    }
 }
 
+#ifdef USE_SSE2
+void Kaleidoscope::process_block(Block* block)
+{
+    for (std::int32_t y = block->y_start; y <= static_cast<std::int32_t>(block->y_end); ++y) {
+        for (std::int32_t x = block->x_start; x <= static_cast<std::int32_t>(block->x_end); x += 4) {
+            std::uint8_t* out = lookup(block->out_frame, x, y);
+            __m128 source_x;
+            __m128 source_y;
+
+            // rotate points to source_x,source_y
+            rotate(x, y, &source_x, &source_y);
+
+            // reflect back into image if necessary
+
+            // if (source_x < 0) source_x = -source_x;
+            source_x = _mm_and_ps(source_x, *(v4sf*)_ps_inv_sign_mask);
+            // if (source_x > m_width) source_x = m_width - (source_x - m_width);
+            __m128 ge_width = _mm_cmpge_ps(source_x, m_sse_width);
+            source_x = _mm_or_ps(_mm_and_ps(_mm_sub_ps(m_sse_width, _mm_sub_ps(source_x, m_sse_width)), ge_width), _mm_andnot_ps(ge_width, source_x));
+
+            // same for y
+            source_y = _mm_and_ps(source_y, *(v4sf*)_ps_inv_sign_mask);
+            __m128 ge_height = _mm_cmpge_ps(source_y, m_sse_height);
+            source_y = _mm_or_ps(_mm_and_ps(_mm_sub_ps(m_sse_height, _mm_sub_ps(source_y, m_sse_height)), ge_height), _mm_andnot_ps(ge_height,source_y));
+
+            __m128i source_xi = _mm_cvttps_epi32(_mm_min_ps(source_x, _mm_sub_ps(m_sse_width, m_sse_ps_1)));
+            __m128i source_yi = _mm_cvttps_epi32(_mm_min_ps(source_y, _mm_sub_ps(m_sse_height, m_sse_ps_1)));
+
+            std::int32_t* sx = reinterpret_cast<std::int32_t*>(&source_xi);
+            std::int32_t* sy = reinterpret_cast<std::int32_t*>(&source_yi);
+            std::memcpy(out, lookup(block->in_frame, sx[0], sy[0]), m_pixel_size);
+            out += m_pixel_size;
+            std::memcpy(out, lookup(block->in_frame, sx[1], sy[1]), m_pixel_size);
+            out += m_pixel_size;
+            std::memcpy(out, lookup(block->in_frame, sx[2], sy[2]), m_pixel_size);
+            out += m_pixel_size;
+            std::memcpy(out, lookup(block->in_frame, sx[3], sy[3]), m_pixel_size);
+        }
+    }
+}
+
+void Kaleidoscope::process_block_bg(Block* block)
+{
+    for (std::int32_t y = block->y_start; y <= static_cast<std::int32_t>(block->y_end); ++y) {
+        for (std::int32_t x = block->x_start; x <= static_cast<std::int32_t>(block->x_end); x += 4) {
+            std::uint8_t* out = lookup(block->out_frame, x, y);
+            __m128 source_x;
+            __m128 source_y;
+
+            // rotate points to source_x,source_y
+            rotate(x, y, &source_x, &source_y);
+
+            float* sx = reinterpret_cast<float*>(&source_x);
+            float* sy = reinterpret_cast<float*>(&source_y);
+            process_bg(sx[0], sy[0], block->in_frame, out);
+            out += m_pixel_size;
+            process_bg(sx[1], sy[1], block->in_frame, out);
+            out += m_pixel_size;
+            process_bg(sx[2], sy[2], block->in_frame, out);
+            out += m_pixel_size;
+            process_bg(sx[3], sy[3], block->in_frame, out);
+        }
+    }
+}
+
+
+#else
 void Kaleidoscope::process_block(Block *block)
 {
     for (std::uint32_t y = block->y_start; y <= block->y_end; ++y) {
-#ifdef USE_SSE2
-        for (std::uint32_t x = 0; x < m_width; x += 4) {
-#else
-        for (std::uint32_t x = 0; x < m_width; ++x) {
-#endif
+        for (std::uint32_t x = block->x_start; x <= block->x_end; ++x) {
             std::uint8_t* out = lookup(block->out_frame, x, y);
-#ifdef USE_SSE2
-            ALIGN16_BEG int ALIGN16_END mx[4] = { static_cast<int>(x), static_cast<int>(x) + 1, static_cast<int>(x) + 2, static_cast<int>(x) + 3 };
-            ALIGN16_BEG int ALIGN16_END my[4] = { static_cast<int>(y), static_cast<int>(y), static_cast<int>(y), static_cast<int>(y) };
 
-            Reflect_info info = calculate_reflect_info((__m128i*)mx, (__m128i*)my);
-
-            // float reflection_angle = (info.segment_number * m_segment_width);
-            __m128 reflection_angle = _mm_mul_ps(info.segment_number, m_sse_segment_width);
-            
-            //reflection_angle -= info.segment_number % 2 ? (m_segment_width - 2 * (info.reference_angle - reflection_angle)) : 0;
-            __m128i segi_p1 = _mm_add_epi32(info.segment_number_i, m_sse_epi32_1);
-            __m128 refl_factor = _mm_cvtepi32_ps(_mm_sub_epi32(_mm_srl_epi32(segi_p1, m_sse_shift_1), _mm_srl_epi32(info.segment_number_i, m_sse_shift_1)));
-
-           reflection_angle = _mm_sub_ps(reflection_angle, _mm_mul_ps(refl_factor, _mm_sub_ps(m_sse_segment_width, _mm_mul_ps(m_sse_ps_2, _mm_sub_ps(info.reference_angle, reflection_angle)))));
-          
-           // reflection_angle *= std::signbit(info.angle) ? 1 : -1;            
-           reflection_angle = _mm_mul_ps(reflection_angle,_mm_sub_ps(m_sse_ps_0, _mm_or_ps(_mm_and_ps(info.angle, *(v4sf*)_ps_sign_mask), m_sse_ps_1)));
-
-            __m128 cos_angle = cos_ps(reflection_angle);
-            __m128 sin_angle = sin_ps(reflection_angle);
-            //float source_x = info.screen_x * cos_angle - info.screen_y * sin_angle;
-            __m128 source_x = _mm_sub_ps(_mm_mul_ps(info.screen_x,cos_angle),_mm_mul_ps(info.screen_y,sin_angle));
-            //float source_y = info.screen_y * cos_angle + info.screen_x * sin_angle;
-            __m128 source_y = _mm_add_ps(_mm_mul_ps(info.screen_y,cos_angle),_mm_mul_ps(info.screen_x,sin_angle));
-
-            from_screen(&source_x, &source_y);
-
-            float *f_segment_number = reinterpret_cast<float*>(&info.segment_number);
-            float *f_source_x = reinterpret_cast<float*>(&source_x);
-            float *f_source_y = reinterpret_cast<float*>(&source_y);
-            
-            std::int32_t segment_number = static_cast<std::int32_t>(*f_segment_number++);
-            if (segment_number) {
-                process_rotation(segment_number, *f_source_x, *f_source_y, block->in_frame, out);
-            } else {
-                std::memcpy(out, lookup(block->in_frame,x,y), m_pixel_size);
-            }
-            out += m_pixel_size;
-            f_source_x++;
-            f_source_y++;
-
-            segment_number = static_cast<std::int32_t>(*f_segment_number++);
-            if (segment_number) {
-                process_rotation(segment_number, *f_source_x, *f_source_y, block->in_frame, out);
-            } else {
-                std::memcpy(out, lookup(block->in_frame, x+1, y), m_pixel_size);
-            }
-            out += m_pixel_size;
-            f_source_x++;
-            f_source_y++;
-
-            segment_number = static_cast<std::int32_t>(*f_segment_number++);
-            if (segment_number) {
-                process_rotation(segment_number, *f_source_x, *f_source_y, block->in_frame, out);
-            } else {
-                std::memcpy(out, lookup(block->in_frame, x+2, y), m_pixel_size);
-            }
-            out += m_pixel_size;
-            f_source_x++;
-            f_source_y++;
-
-            segment_number = static_cast<std::int32_t>(*f_segment_number++);
-            if (segment_number) {
-                process_rotation(segment_number, *f_source_x, *f_source_y, block->in_frame, out);
-            } else {
-                std::memcpy(out, lookup(block->in_frame, x+3, y), m_pixel_size);
-            }
-#else
             Reflect_info info = calculate_reflect_info(x, y);
 
             if (info.segment_number) {
@@ -477,32 +484,17 @@ void Kaleidoscope::process_block(Block *block)
                     } else if (source_y > m_height - 10e-4f) {
                         source_y = m_height - (source_y - m_height + 10e-4f);
                     }
-                    std::memcpy(out, lookup(block->in_frame, (std::uint32_t)source_x, (std::uint32_t)source_y), m_pixel_size);
+                    std::memcpy(out, lookup(block->in_frame, static_cast<std::uint32_t>(source_x), static_cast<std::uint32_t>(source_y)), m_pixel_size);
                 } else {
-                    if (source_x < 0 && -source_x <= m_edge_threshold) {
-                        source_x = 0;
-                    } else if (source_x >= m_width && source_x < m_width + m_edge_threshold) {
-                        source_x = m_width - 1.0f;
-                    }
-                    if (source_y < 0 && -source_y <= m_edge_threshold) {
-                        source_y = 0;
-                    } else if (source_y >= m_height && source_y < m_height + m_edge_threshold) {
-                        source_y = m_height - 1.0f;
-                    }
-                    if ((std::uint32_t)source_x >= 0 && (std::uint32_t)source_x < m_width &&
-                        (std::uint32_t)source_y >= 0 && (std::uint32_t)source_y < m_height) {
-                        std::memcpy(out, lookup(block->in_frame, (std::uint32_t)source_x, (std::uint32_t)source_y), m_pixel_size);
-                    } else if (m_background_colour) {
-                        std::memcpy(out, reinterpret_cast<const std::uint8_t*>(m_background_colour), m_pixel_size);
-                    }
+                    process_bg(source_x, source_y, block->in_frame, out);
                 }
             } else {
                 std::memcpy(out, lookup(block->in_frame, x, y), m_pixel_size);
             }
-#endif
         }
     }
 }
+#endif
 
 std::uint8_t colours[63][3] = {
     { 0x00, 0xFF, 0x00 },
@@ -600,7 +592,11 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
             reinterpret_cast<std::uint8_t*>(out_frame),
             0, 0,
             m_width - 1, m_height - 1);
-        process_block(&block);
+        if (m_edge_reflect) {
+            process_block(&block);
+        } else {
+            process_block_bg(&block);
+        }
     } else {
         std::uint32_t n_threads = m_n_threads == 0 ? std::thread::hardware_concurrency() : m_n_threads;
 
@@ -618,7 +614,7 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
                 0, y_start,
                 m_width - 1, y_end));
 
-            futures.push_back(std::async(std::launch::async, &Kaleidoscope::process_block, this, blocks[i].get()));
+            futures.push_back(std::async(std::launch::async, m_edge_reflect ? &Kaleidoscope::process_block : &Kaleidoscope::process_block_bg, this, blocks[i].get()));
             y_start = y_end + 1;
             y_end += block_height;
         }

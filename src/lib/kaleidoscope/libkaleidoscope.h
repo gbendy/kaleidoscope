@@ -275,7 +275,13 @@ private:
     /// @param y y coordinate
     void from_screen(__m128 *x, __m128 *y);
 
-    void process_rotation(std::int32_t segment_number, float source_x, float source_y, const std::uint8_t* in, std::uint8_t* out);
+    /// Rotate the four coordinates from <tt>x,y</tt> to <tt>x+4,y</tt> and store results in
+    /// <tt>source_x,source_y</tt>
+    /// @param x x coordinate to start rotate from
+    /// @param y y coordinate to rotate
+    /// @param source_x receives the x coordiante results
+    /// @param source_y receives the y coordinate results
+    inline void rotate(int x, int y, __m128 *source_x, __m128 *source_y);
 #else
     /// Defines reflection information for a given point in the frame
     struct Reflect_info {
@@ -333,6 +339,20 @@ private:
     /// Process a block
     void process_block(Block *block);
 
+    /// Copy pixel <tt>source_x,source_y</tt> from \p in to \p out using the background colour
+    /// if the pixel is out of range
+    /// @param x x coordinate to copy 
+    /// @param y y coordinate to copy
+    /// @param in the first pixel in the source image
+    /// @param out destination
+    void process_bg(float x, float y, const std::uint8_t* in, std::uint8_t* out);
+
+
+#ifdef USE_SSE2
+    // Process a block using background colour copy
+    void process_block_bg(Block* block);
+#endif
+
     std::uint8_t *lookup(std::uint8_t *p, std::uint32_t x, std::uint32_t y);
 
     const std::uint8_t* lookup(const std::uint8_t* p, std::uint32_t x, std::uint32_t y);
@@ -383,6 +403,10 @@ private:
     __m128i m_sse_epi32_1;
     __m128i m_sse_epi32_2;
     __m128i m_sse_shift_1;
+    __m128 m_sse_width;
+    __m128 m_sse_height;
+    __m128 m_sse_width_m1;
+    __m128 m_sse_height_m1;
 #endif
 };
 
