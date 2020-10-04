@@ -1,5 +1,9 @@
 CMAKE_MINIMUM_REQUIRED( VERSION 3.1 )
 
+cmake_policy(SET CMP0056 NEW)
+cmake_policy(SET CMP0066 NEW)
+cmake_policy(SET CMP0067 NEW)
+
 PROJECT( kaleidoscope VERSION 1.0)
 
 set(CMAKE_CXX_STANDARD 11)

@@ -7,6 +7,24 @@
 
 #ifdef USE_SSE2
 #include "sse_mathfun_extension.h"
+#ifdef HAS_INTEL_INTRINSICS
+#include <immintrin.h>
+#endif
+#ifdef HAS_SIN_INTRINSIC
+#define _mm_call_sin_ps _mm_sin_ps
+#else
+#define _mm_call_sin_ps sin_ps
+#endif
+#ifdef HAS_COS_INTRINSIC
+#define _mm_call_cos_ps _mm_cos_ps
+#else
+#define _mm_call_cos_ps cos_ps
+#endif
+#ifdef HAS_ATAN2_INTRINSIC
+#define _mm_call_atan2_ps _mm_atan2_ps
+#else
+#define _mm_call_atan2_ps atan2_ps
+#endif
 #endif
 
 #ifndef M_PI
@@ -266,7 +284,7 @@ Kaleidoscope::Reflect_info Kaleidoscope::calculate_reflect_info(__m128i* x, __m1
     // info.reference_angle = std::fabs(info.angle) + m_segment_width / 2;
     // info.segment_number = std::uint32_t(info.reference_angle / m_segment_width);
 
-    info.angle = _mm_sub_ps(atan2_ps(info.screen_y, info.screen_x), m_sse_start_angle);
+    info.angle = _mm_sub_ps(_mm_call_atan2_ps(info.screen_y, info.screen_x), m_sse_start_angle);
     info.reference_angle = _mm_add_ps(_mm_and_ps(info.angle, *(v4sf*)_ps_inv_sign_mask), m_sse_half_segment_width);
     // we do a max with 0 since atan2_ps will return nan for atan2(0,0) which ends up with a negative reference angle.
     //info.segment_number = _mm_max_ps(_mm_div_ps(info.reference_angle, m_sse_segment_width), m_sse_ps_0);
@@ -318,8 +336,8 @@ void Kaleidoscope::rotate(int x, int y, __m128 *source_x, __m128 *source_y)
     // reflection_angle = reflection_angle * info.segment_number >= 1, zero out reflection if in segment 0
     reflection_angle = _mm_mul_ps(reflection_angle, _mm_and_ps(_mm_cmpge_ps(info.segment_number, m_sse_ps_1), m_sse_ps_1));
 
-    __m128 cos_angle = cos_ps(reflection_angle);
-    __m128 sin_angle = sin_ps(reflection_angle);
+    __m128 cos_angle = _mm_call_cos_ps(reflection_angle);
+    __m128 sin_angle = _mm_call_sin_ps(reflection_angle);
     //float source_x = info.screen_x * cos_angle - info.screen_y * sin_angle;
     *source_x = _mm_sub_ps(_mm_mul_ps(info.screen_x, cos_angle), _mm_mul_ps(info.screen_y, sin_angle));
     //float source_y = info.screen_y * cos_angle + info.screen_x * sin_angle;
