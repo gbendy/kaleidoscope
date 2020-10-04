@@ -59,6 +59,9 @@ public:
         register_param(m_bg_colour,
                                 "bg_color",
                                 "colour to use if reflection lies outside of source image and not reflecting back in. default 1,0,1");
+        register_param(m_bg_alpha,
+                                "bg_alpha",
+                                "alpha to use if reflection lies outside of source image and not reflecting back in. default 1");
         register_param(m_multithreaded,
                                 "multithreaded",
                                 "set to true to enable multithreaded calculation. default true");
