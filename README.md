@@ -39,7 +39,7 @@ Then open the solution in Visual Studio 2019.
 
 ## Custom build options
 
-There is only one build option `-DUSE_REFLECTION`. When enabled then actual reflections will be calculated rather than reflection by rotation. This can be quicker for lower segmentation values but slower for larger. The default rotation method is constant speed regardless of segmentation.
+There is only one build option `-DNO_SSE2`. Set this to disable usages of SSE2 instructions.
 
 # Contributors
 

@@ -610,11 +610,15 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
             reinterpret_cast<std::uint8_t*>(out_frame),
             0, 0,
             m_width - 1, m_height - 1);
+#ifdef USE_SSE2
         if (m_edge_reflect) {
             process_block(&block);
         } else {
             process_block_bg(&block);
         }
+#else
+        process_block(&block);
+#endif
     } else {
         std::uint32_t n_threads = m_n_threads == 0 ? std::thread::hardware_concurrency() : m_n_threads;
 
@@ -632,7 +636,11 @@ std::int32_t Kaleidoscope::process(const void* in_frame, void* out_frame)
                 0, y_start,
                 m_width - 1, y_end));
 
+#ifdef USE_SSE2
             futures.push_back(std::async(std::launch::async, m_edge_reflect ? &Kaleidoscope::process_block : &Kaleidoscope::process_block_bg, this, blocks[i].get()));
+#else
+            futures.push_back(std::async(std::launch::async, &Kaleidoscope::process_block, this, blocks[i].get()));
+#endif
             y_start = y_end + 1;
             y_end += block_height;
         }

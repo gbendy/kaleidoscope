@@ -7,6 +7,7 @@
 #include <cmath>
 #include <functional>
 
+#ifndef NO_SSE2
 #if _M_IX86_FP == 2 || _M_X64 == 100
 #ifndef _M_ARM 
 #define __SSE2__
@@ -16,6 +17,7 @@
 #ifdef __SSE2__
 #define USE_SSE2
 #include <emmintrin.h>
+#endif
 #endif
 
 namespace libkaleidoscope {
