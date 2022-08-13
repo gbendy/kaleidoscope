@@ -68,8 +68,8 @@ public:
     virtual std::int32_t set_segmentation(std::uint32_t segmentation) = 0;
 
     /**
-        * Returns the segmentation value
-        */
+     * Returns the segmentation value
+     */
     virtual std::uint32_t get_segmentation() const = 0;
     
     /**
