@@ -44,7 +44,7 @@
 		<parameter type="bool" name="multithreaded" default="1">
 		<name>Multithreaded</name>
 	</parameter>
-		<parameter type="constant" name="threads" default="0" min="0" max="32" factor="32">
+		<parameter type="constant" name="n_threads" default="0" min="0" max="32" factor="32">
 		<name>Thread count</name>
 	</parameter>
 </effect>

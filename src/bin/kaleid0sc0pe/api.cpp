@@ -1,5 +1,4 @@
 #include "frei0r.hpp"
-
 #include "ikaleidoscope.h"
 
 class kaleid0sc0pe : public frei0r::filter
@@ -66,7 +65,7 @@ public:
                                 "multithreaded",
                                 "set to true to enable multithreaded calculation. default true");
         register_param(m_threads,
-                                "threads",
+                                "n_threads",
                                 "the number of threads to use, if 0 then autocalculate otherwise value * 32. default 0");
 
 
@@ -165,4 +164,4 @@ private:
     std::unique_ptr<libkaleidoscope::IKaleidoscope> m_kaleidoscope;
 };
 
-frei0r::construct<kaleid0sc0pe> plugin("Kaleid0sc0pe", "Applies a kaleidoscope effect to a source image", "Brendan Hack", 1, 0, F0R_COLOR_MODEL_RGBA8888);
+frei0r::construct<kaleid0sc0pe> plugin("Kaleid0sc0pe", "Applies a kaleidoscope effect to a source image", "Brendan Hack", 1, 1, F0R_COLOR_MODEL_RGBA8888);
