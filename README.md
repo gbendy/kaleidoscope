@@ -8,6 +8,11 @@ A [frei0r](https://frei0r.dyne.org "frei0r") plugin and library to produce a kal
 | [![Colorful Stones](images/colorful_stones-400.jpg)](images/colorful_stones.jpg)  | [![Kaleidoscoped Colorful Stones](images/colorful_stones-tr16-400.jpg)](images/colorful_stones-tr16.jpg)  |
 |Licensed under [CC BY 2.0](https://creativecommons.org/licenses/by/2.0/?ref=ccsearch&atype=html "CC BY 2.0") | Segmentation 16, source segment centred to top right|
 
+| [Created Many and Strange (Official Music Video)](https://www.youtube.com/watch?v=2r9ggSie1wI) (YouTube) by [Spaceman Paul](https://github.com/SpacemanPaul "Spaceman Paul") |
+| --- | 
+| [![Created Many and Strange (Official Music Video) by @SpacemanPaul](https://img.youtube.com/vi/2r9ggSie1wI/0.jpg)](https://www.youtube.com/watch?v=2r9ggSie1wI) |
+| Animated Music Video created in [KdenLive](https://kdenlive.org) by [Spaceman Paul](https://www.youtube.com/channel/UCBVFfRZw4Vbk3j6mNCukztg) |
+
 Allows for specification of number of segments (mirrors), auto selection of optimal source reflection segment, placement of origin and much more!
 
 # Build
